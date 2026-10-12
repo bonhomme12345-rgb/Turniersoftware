@@ -16,3 +16,9 @@ Neue Versionen werden beim nächsten Start mit Internet automatisch geladen und 
 - `manifest.webmanifest` – Name, Farben und Symbole für die Installation
 - `sw.js` – Offline-Speicher
 - `icons/` – App-Symbole
+
+## Windows-Programm
+
+Der Ordner `desktop/` enthält das Windows-Programm (Electron). Es nutzt dieselbe `index.html` wie die Web-App.
+
+Bei jeder Änderung baut GitHub das Programm automatisch neu: **Actions → „Windows-Programm bauen“ → letzter Lauf → unten bei „Artifacts“ „Turnierleitung-Windows“ herunterladen** (dafür muss man bei GitHub angemeldet sein). Die ZIP-Datei enthält den Installer und die portable Version.

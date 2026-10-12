@@ -1,0 +1,62 @@
+{
+  "name": "turnierleitung",
+  "version": "1.0.0",
+  "description": "Pétanque-Turnierleitung",
+  "main": "main.js",
+  "scripts": {
+    "dist": "electron-builder --win --publish never"
+  },
+  "keywords": [],
+  "author": "Patrick",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "productName": "Petanque-Turnierleitung",
+  "build": {
+    "appId": "de.petanque.turnierleitung",
+    "productName": "Petanque-Turnierleitung",
+    "files": [
+      "main.js",
+      "app/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Pétanque-Turnierleitung",
+      "language": "1031",
+      "installerLanguages": [
+        "de_DE"
+      ],
+      "artifactName": "Turnierleitung-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Turnierleitung-portable-${version}.${ext}"
+    },
+    "publish": null
+  }
+}
