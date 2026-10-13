@@ -166,6 +166,9 @@ tr.off td{opacity:.5;text-decoration:line-through}
   #print th,#print td{border-bottom:.3pt solid #999;padding:1.4mm 2mm;color:#000}
   #print th{color:#333}
   tr{break-inside:avoid}
+  #print .lz{break-inside:avoid;page-break-inside:avoid;margin-bottom:8mm}
+  #print .lz+.lz{break-before:page;page-break-before:always}
+  #print .lz table{margin-bottom:3mm}
 }
 </style>
 </head>
@@ -206,6 +209,8 @@ const SYSTEMS = {
     desc: 'Runde 1 wird frei gelost: Die Sieger bilden die Gruppe A, die Verlierer die Gruppe C. Erst danach wird Runde 2 gelost – getrennt innerhalb von A und innerhalb von C. Wer in A verliert, spielt im B-Turnier weiter, wer in C verliert, im D-Turnier. Nach diesen zwei Runden werden die vier Turniere ausgelost und im K.O. zu Ende gespielt. Passt ein Feld nicht auf 16 oder 32 Teams, beginnt es mit einer Cadrage; wer sie verliert, scheidet aus. Dieses System wird erst ab 64 Teams gespielt.' },
   melee: { name: 'Supermêlée', min: 4, opts: ['rounds'],
     desc: 'Einzelmeldung: In jeder Runde werden Partner und Gegner neu gelost. Unter 24 Spielern wird in Doubletten gespielt (bei Bedarf mit einer Triplette aufgefüllt), ab 24 Spielern in Tripletten (bei Bedarf mit möglichst wenigen Doubletten). Einzelwertung nach Siegen und Punktedifferenz. Spieler können jederzeit ein- und aussteigen.' },
+  quali: { name: 'Quali (Poule + Barrage + K.O.)', min: 6, opts: ['places'],
+    desc: 'Ablauf nach dem HPV-Ablaufplan zur DM-Qualifikation, mit Barrage in den Poules. Die Meldeliste ist die Setzliste des Verbands (Setzplatz = Reihenfolge). Poules zu 4 Teams, Dreierpoules nach Teilnehmerzahl immer am Ende. Je Poule werden 2 Teams gesetzt (Reihe 1 von Poule 1 abwärts, Reihe 2 von hinten), Reihe 3 und 4 werden zugelost. Runde 1: Reihe 1 gegen 4 und Reihe 2 gegen 3. Runde 2: Sieger gegen Sieger (Sieger = Poule-Erster), Verlierer gegen Verlierer (Verlierer scheidet aus). Barrage: Verlierer des Siegerspiels gegen Sieger des Verliererspiels (Sieger = Poule-Zweiter). Danach Cadrage, bis ein lückenloses K.O. bis zu den Quali-Plätzen möglich ist, und K.O.-Runden. Poule und Cadrage beginnen mit 2:2.' },
 };
 const HAS_FINALS = { maas: 1 };
 
@@ -223,7 +228,7 @@ function newTournament(name) {
     id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name: name || 'Neues Turnier', date: new Date().toISOString().slice(0, 10), place: '',
     formation: 'doublette', system: 'swiss',
-    opts: { target: 13, courts: 8, rounds: 3, field: 16, byeAgainst: 7 },
+    opts: { target: 13, courts: 8, rounds: 3, field: 16, byeAgainst: 7, places: 10 },
     entries: [], phases: [], matches: [], seq: 0, mno: 0, started: false,
   };
 }
@@ -328,8 +333,10 @@ function assignCourts(T) {
   const C = Math.max(0, T.opts.courts | 0);
   for (const m of T.matches) if (m.court && (m.court > C) && playable(m)) m.court = null;
   const busy = new Set(T.matches.filter(m => playable(m) && m.court).map(m => m.court));
+  // Quali: Jeder Poule spielt auf seinen zwei festen Bahnen (m.pcourt), sofern genug Bahnen eingestellt sind
+  for (const m of T.matches) if (m.pcourt && m.pcourt <= C && playable(m) && !m.court && !busy.has(m.pcourt)) { m.court = m.pcourt; busy.add(m.pcourt); }
   for (const m of T.matches) {
-    if (!playable(m) || m.court) continue;
+    if (!playable(m) || m.court || (m.pcourt && m.pcourt <= C)) continue;
     // Wenn möglich eine Bahn Abstand: zuerst eine freie Bahn, deren Nachbarbahnen beide frei sind (von vorn);
     // geht das nicht mehr, werden die Lücken von hinten aufgefüllt (höchste freie Bahn zuerst)
     let c = 0;
@@ -479,6 +486,143 @@ function drawMelee(T, ph) {
   ph.round = r;
 }
 
+/* ---------- Quali (Poule mit Barrage, Cadrage, K.O.) ---------- */
+// Poules zu 4 Teams, Dreierpoules nach n % 4 (immer die letzten Poules). Je Poule kommen 2 Teams weiter:
+// der Sieger des Siegerspiels (Erster) und der Sieger der Barrage (Zweiter). Danach Cadrage auf t = Q·2^k
+// Teams (größter solcher Wert bis F = 2·Poules) und k K.O.-Runden bis zu den Q Quali-Plätzen.
+function qPlan(n, places) {
+  const Q = Math.max(1, places | 0 || 10), P = Math.ceil(n / 4), d = (4 - n % 4) % 4, F = 2 * P;
+  if (n < 6 || Q > F) return { n, Q, P, d, F, ok: false };
+  let t = Q, k = 0; while (t * 2 <= F) { t *= 2; k++; }
+  return { n, Q, P, d, F, t, k, cad: F - t, ok: true };
+}
+// Setzen: Reihe 1 = Setzplatz 1..P (Poule 1 abwärts), Reihe 2 = Setzplatz P+1..2P (vom letzten Poule zurück),
+// Reihe 3 und 4 werden zugelost; Dreierpoules haben in Reihe 4 einen Strich (Freilos).
+function startQuali(T, ids) {
+  const pl = qPlan(ids.length, T.opts.places), P = pl.P, rest = shuffle(ids.slice(2 * P));
+  const pools = Array.from({ length: P }, (_, i) => ({ no: i + 1, three: i >= P - pl.d, rows: [ids[i], ids[2 * P - 1 - i], null, null] }));
+  pools.forEach(x => { x.rows[2] = rest.shift(); });
+  pools.forEach(x => { x.rows[3] = x.three ? BYE : rest.shift(); });
+  if ((T.opts.courts | 0) >= 2 * P) pools.forEach(x => { x.courts = [2 * x.no - 1, 2 * x.no]; });
+  const ph = addPhase(T, { type: 'poule', title: 'Poules', ids, pools, plan: pl }), g = new Map();
+  const mk = (x, kind, round, o) => { const c2 = kind === 'B' || kind === 'L'; g.set(x.no + kind, addMatch(T, ph, Object.assign({ round, pos: (x.no - 1) * 2 + (c2 ? 1 : 0), br: true, pool: x.no, kind, pcourt: x.courts ? x.courts[c2 ? 1 : 0] : null }, o))); };
+  const id = (x, k) => g.get(x.no + k).id;
+  pools.forEach(x => { mk(x, 'A', 1, { a: x.rows[0], b: x.rows[3] }); mk(x, 'B', 1, { a: x.rows[1], b: x.rows[2] }); });
+  pools.forEach(x => { mk(x, 'W', 2, { srcA: { m: id(x, 'A') }, srcB: { m: id(x, 'B') } }); mk(x, 'L', 2, { srcA: { m: id(x, 'A'), lose: true }, srcB: { m: id(x, 'B'), lose: true } }); });
+  pools.forEach(x => mk(x, 'X', 3, { srcA: { m: id(x, 'W'), lose: true }, srcB: { m: id(x, 'L') } }));
+}
+const qPhase = (T, type) => T.phases.find(p => p.type === (type || 'poule'));
+function qPool(T, ph, no) { const ms = phaseMatches(T, ph).filter(m => m.pool === no), g = k => ms.find(m => m.kind === k); return { A: g('A'), B: g('B'), W: g('W'), L: g('L'), X: g('X'), ms }; }
+function qRes(T, ph, x) { const g = qPool(T, ph, x.no); return { first: winner(g.W), second: winner(g.X), out: [loser(g.X), loser(g.L)].filter(real), done: !g.ms.some(pending) }; }
+// Wer ist Erster/Zweiter welches Poules: id -> { pool, place, three }
+function qInfo(T, ph) {
+  const info = new Map();
+  ph.pools.forEach(x => { const r = qRes(T, ph, x); if (real(r.first)) info.set(r.first, { pool: x.no, place: 1, three: x.three }); if (real(r.second)) info.set(r.second, { pool: x.no, place: 2, three: x.three }); });
+  return info;
+}
+const qPoolOf = ph => { const M = new Map(); ph.pools.forEach(x => x.rows.forEach(id => { if (real(id)) M.set(id, x.no); })); return id => M.get(id); };
+// Erster der Liste gegen Letzten, Zweiter gegen Vorletzten usw. Treffen zwei Teams aus demselben Poule
+// aufeinander, wird der Gegner (untere Hälfte) mit dem der nachfolgenden Partie getauscht, bei der letzten Partie mit der davor.
+function qFold(list, poolOf) {
+  const n = list.length, g = []; for (let i = 0; i < n / 2; i++) g.push([list[i], list[n - 1 - i]]);
+  const bad = p => poolOf(p[0]) != null && poolOf(p[0]) === poolOf(p[1]);
+  const sw = (i, j) => { const x = g[i][1]; g[i][1] = g[j][1]; g[j][1] = x; };
+  for (let i = 0; i < g.length; i++) {
+    if (!bad(g[i])) continue;
+    const cand = []; for (let j = i + 1; j < g.length; j++) cand.push(j); for (let j = i - 1; j >= 0; j--) cand.push(j);
+    for (const j of cand) { sw(i, j); if (!bad(g[i]) && !bad(g[j])) break; sw(i, j); }
+  }
+  return g;
+}
+// Cadrage: Auswahl (und Hilfsliste) Zweite der 3er-Poules, Zweite der 4er-Poules, Erste der 3er-Poules,
+// Erste der 4er-Poules, jeweils von der höchsten Poule-Nummer abwärts, bis 2 · Cadrage-Spiele erreicht sind
+function drawQCad(T) {
+  const pp = qPhase(T), pl = pp.plan, desc = pp.pools.slice().sort((a, b) => b.no - a.no), res = new Map(pp.pools.map(x => [x.no, qRes(T, pp, x)]));
+  const pick = (k, three) => desc.filter(x => !!x.three === three).map(x => res.get(x.no)[k]).filter(real);
+  const list = [...pick('second', true), ...pick('second', false), ...pick('first', true), ...pick('first', false)].slice(0, 2 * pl.cad);
+  const firsts = new Set(pp.pools.map(x => res.get(x.no).first));
+  const ph = addPhase(T, { type: 'qcad', title: 'Cadrage', stage: 2, ids: list, list, round: 1 });
+  qFold(list, qPoolOf(pp)).forEach(([a, b], i) => addMatch(T, ph, { round: 1, pos: i, cno: i + 1, star: firsts.has(a) || firsts.has(b), a, b }));
+}
+// Hilfsliste K.O.-Runde 1: Poule-Sieger ohne Cadrage (Poule 1 aufwärts), Cadrage-Sieger mit Stern,
+// Poule-Zweite ohne Cadrage, Cadrage-Sieger ohne Stern
+function qkoList(T) {
+  const pp = qPhase(T), cp = qPhase(T, 'qcad'), inCad = new Set(cp ? cp.list : []), res = pp.pools.map(x => qRes(T, pp, x));
+  const cms = cp ? phaseMatches(T, cp).slice().sort((a, b) => a.cno - b.cno) : [], free = k => res.map(r => r[k]).filter(id => real(id) && !inCad.has(id));
+  return [...free('first'), ...cms.filter(m => m.star).map(winner).filter(real), ...free('second'), ...cms.filter(m => !m.star).map(winner).filter(real)];
+}
+// K.O.-Runde 1 nach der Hilfsliste; ab Runde 2 Sieger der niedrigsten gegen Sieger der höchsten Spielnummer
+function drawQKo(T) {
+  const pp = qPhase(T), poolOf = qPoolOf(pp); let ph = qPhase(T, 'qko'), pairs;
+  if (!ph) {
+    const list = qkoList(T);
+    ph = addPhase(T, { type: 'qko', title: 'K.O.-Runden', stage: maxStage(T) + 1, ids: list, list, round: 0, nRounds: pp.plan.k });
+    pairs = qFold(list, poolOf);
+  } else pairs = qFold(phaseMatches(T, ph).filter(m => m.round === ph.round).sort((a, b) => a.pos - b.pos).map(winner), poolOf);
+  const r = ph.round + 1;
+  pairs.forEach(([a, b], i) => addMatch(T, ph, { round: r, pos: i, a, b }));
+  ph.round = r;
+}
+// Nachmeldung nach Einschreibeschluss: in den ersten Dreierpoule, Reihe 4 (spielt gegen Reihe 1), solange
+// dort die zweite Runde noch nicht gespielt ist. Gibt es keinen Dreierpoule, ist das Team nicht spielberechtigt.
+function qLateSlot(T) {
+  const ph = qPhase(T); if (!ph || maxStage(T) > 1) return null;
+  return ph.pools.find(x => x.rows[3] === BYE && (() => { const g = qPool(T, ph, x.no); return !played(g.W) && !played(g.L) && !played(g.X); })()) || null;
+}
+function qLate(T, o) {
+  const ph = qPhase(T);
+  if (!ph || maxStage(T) > 1) throw new Error('Nachmeldungen sind nur während der Poule-Runde möglich.');
+  const x = qLateSlot(T);
+  if (!x) throw new Error(ph.pools.some(p => p.rows[3] === BYE) ? 'In den Dreierpoules läuft schon die zweite Runde – das Team kann nicht mehr eingesetzt werden.' : 'Es gibt keinen Dreierpoule – das Team ist nicht spielberechtigt.');
+  const e = addEntry(T, o), g = qPool(T, ph, x.no);
+  x.rows[3] = e.id; x.three = false; ph.ids.push(e.id); ph.plan.n++; ph.plan.d--;
+  g.A.b = e.id; delete g.A.auto; g.A.sa = g.A.sb = null;
+  propagate(T); assignCourts(T);
+  return { entry: e, pool: x.no };
+}
+function qStatus(T) {
+  const st = maxStage(T), p = T.phases.find(x => x.stage === st), pl = qPhase(T).plan;
+  const open = phaseMatches(T, p).filter(m => pending(m) && m.a !== BYE && m.b !== BYE).length, sp = k => `${k} ${k === 1 ? 'Spiel' : 'Spiele'}`;
+  if (p.type === 'poule') {
+    if (open) { const done = p.pools.filter(x => qRes(T, p, x).done).length; return { state: 'play', label: `Poules: ${done} von ${p.pools.length} fertig, noch ${sp(open)} offen` }; }
+    if (pl.cad) return { state: 'next', action: 'qcad', label: `Alle Poules sind fertig: ${pl.F} Teams weiter, Cadrage mit ${pl.cad} ${pl.cad === 1 ? "Spiel" : "Spielen"} auf ${pl.t} Teams.`, btn: 'Cadrage auslosen' };
+    if (pl.k) return { state: 'next', action: 'qko', label: `Alle Poules sind fertig: ${pl.F} Teams weiter.`, btn: 'K.O.-Runde 1 auslosen' };
+    return { state: 'done', label: 'Alle Poules gespielt – die Quali-Plätze stehen fest.' };
+  }
+  if (p.type === 'qcad') {
+    if (open) return { state: 'play', label: `Cadrage: noch ${sp(open)} offen` };
+    if (pl.k) return { state: 'next', action: 'qko', label: `Cadrage ist fertig: ${pl.t} Teams in der K.O.-Runde.`, btn: 'K.O.-Runde 1 auslosen' };
+    return { state: 'done', label: 'Cadrage gespielt – die Quali-Plätze stehen fest.' };
+  }
+  if (open) return { state: 'play', label: `K.O.-Runde ${p.round} von ${p.nRounds}: noch ${sp(open)} offen` };
+  if (p.round < p.nRounds) return { state: 'next', action: 'qko', label: `K.O.-Runde ${p.round} ist fertig.`, btn: `K.O.-Runde ${p.round + 1} auslosen` };
+  return { state: 'done', label: 'Quali abgeschlossen – die Quali-Plätze stehen fest.' };
+}
+// Ergebnisliste: Qualifizierte, Nachrücker (Verlierer der letzten Runde), dann die übrigen Ausgeschiedenen
+function qFinal(T) {
+  const pp = qPhase(T), cp = qPhase(T, 'qcad'), kp = qPhase(T, 'qko'), pl = pp.plan, info = qInfo(T, pp), poolOf = qPoolOf(pp), out = [];
+  const lab = id => { const i = info.get(id); return i ? `Poule ${i.pool}, ${i.place === 1 ? 'Erster' : 'Zweiter'}` : poolOf(id) ? `Poule ${poolOf(id)}` : ''; };
+  const sortBy = (ids, L) => ids.slice().sort((a, b) => { const x = L.indexOf(a), y = L.indexOf(b); return (x < 0 ? 1e9 : x) - (y < 0 ? 1e9 : y); });
+  const num = ids => ids.map((id, i) => ({ place: i + 1, id, info: lab(id) })), dash = ids => ids.map(id => ({ place: '–', id, info: lab(id) }));
+  const done = qStatus(T).state === 'done', gone = new Set(), elim = [];
+  const lost = ms => ms.map(loser).filter(real);
+  if (kp) for (let r = done ? pl.k - 1 : kp.round; r >= 1; r--) { const ids = sortBy(lost(phaseMatches(T, kp).filter(m => m.round === r)), kp.list); if (ids.length) elim.push({ title: `In K.O.-Runde ${r} ausgeschieden`, rows: dash(ids) }); }
+  if (cp && (pl.k || !done)) { const ids = sortBy(lost(phaseMatches(T, cp)), cp.list); if (ids.length) elim.push({ title: 'In der Cadrage ausgeschieden', rows: dash(ids) }); }
+  const pout = pp.pools.flatMap(x => qRes(T, pp, x).out); if (pout.length) elim.push({ title: 'In der Poule ausgeschieden', rows: dash(pout) });
+  if (done) {
+    let q, nach = [];
+    if (pl.k) { const ms = phaseMatches(T, kp).filter(m => m.round === pl.k); q = sortBy(ms.map(winner).filter(real), kp.list); nach = sortBy(lost(ms), kp.list); }
+    else { q = qkoList(T); if (cp) nach = sortBy(lost(phaseMatches(T, cp)), cp.list); }
+    out.push({ title: `Qualifiziert (${q.length})`, rows: num(q) });
+    if (nach.length) out.push({ title: 'Nachrücker', rows: num(nach) });
+  } else {
+    elim.forEach(s => s.rows.forEach(r => gone.add(r.id)));
+    const alive = activeIds(T).filter(id => !gone.has(id));
+    out.push({ title: `Noch im Turnier (${alive.length})`, rows: dash(alive) });
+  }
+  return out.concat(elim);
+}
+
 /* ---------- Ablaufsteuerung ---------- */
 // ACBD-K.O.: Feldgrößen nach zwei Runden und die Cadrage je Feld (Feld wird auf die nächstkleinere Zweierpotenz reduziert)
 function koPlan(n) {
@@ -493,6 +637,7 @@ function validate(T) {
   if (n < S.min) return `Für „${S.name}“ werden mindestens ${S.min} ${who} benötigt (aktuell ${n}).`;
   if (o.rounds < 1 && S.opts.includes('rounds')) return 'Bitte mindestens 1 Runde einstellen.';
   if ((o.courts | 0) < 1) return 'Bitte mindestens 1 Bahn einstellen.';
+  if (T.system === 'quali') { const pl = qPlan(n, o.places); if (!pl.ok) return `Bei ${n} Teams kommen nach den Poules nur ${pl.F} Teams weiter – weniger als ${pl.Q} Quali-Plätze. Bitte die Zahl der Quali-Plätze prüfen.`; }
   return null;
 }
 function start(T) {
@@ -510,7 +655,7 @@ function start(T) {
     if (pool.length % 2) addMatch(T, pre, { round: 1, pos: pool.length, br: true, a: pool[pool.length - 1], b: BYE });
   } else if (sys === 'melee') {
     const ph = addPhase(T, { type: 'melee', title: 'Supermêlée', nRounds: o.rounds | 0, round: 0 }); drawMelee(T, ph);
-  }
+  } else if (sys === 'quali') startQuali(T, ids); // Setzplatz = Startnummer (Setzliste des Verbands 1:1 eingetragen)
   propagate(T); assignCourts(T);
 }
 // Einteilung der K.O.-Felder nach der Vorrunde (P = Feldgröße, üblich 16): Die Felder werden von oben
@@ -566,6 +711,7 @@ function makeFinals(T) {
 const pre2 = p => p.round === 1 || p.round === 2; // schrittweise geloste Vorrunden (ältere Stände hatten einen vorab gelosten Baum)
 function status(T) {
   if (!T.started || !T.phases.length) return { state: 'setup', label: 'Turnier noch nicht gestartet' };
+  if (T.system === 'quali') return qStatus(T);
   const st = maxStage(T), cur = T.phases.filter(p => p.stage === st), p = cur[0];
   const finals = HAS_FINALS[T.system] && st === 1;
   if (p.type === 'pre' && cur.length === 1 && pre2(p)) {
@@ -592,6 +738,8 @@ function next(T) {
   else if (s.state === 'next' && s.action === 'finals') makeFinals(T);
   else if (s.state === 'next' && s.action === 'ko2') drawKo2(T);
   else if (s.state === 'next' && s.action === 'kofields') drawKoFields(T);
+  else if (s.state === 'next' && s.action === 'qcad') drawQCad(T);
+  else if (s.state === 'next' && s.action === 'qko') drawQKo(T);
   else if (s.state === 'done' && s.extra) { (p.type === 'melee' ? drawMelee : drawSwiss)(T, p); p.nRounds = p.round; }
   else throw new Error('Kein nächster Schritt möglich.');
   propagate(T); assignCourts(T);
@@ -613,6 +761,7 @@ const cadLosers = (T, ph) => phaseMatches(T, ph).map(loser).filter(real).map(id 
 function finalSections(T) {
   const out = [], sys = T.system, p1 = T.phases.filter(p => p.stage === 1), p2 = T.phases.filter(p => p.stage === 2);
   if (!p1.length) return out;
+  if (sys === 'quali') return qFinal(T);
   const fromSt = rows => rows.map(s => ({ place: s.place, id: s.id, info: p1[0].type === 'swiss' ? `${s.w} S · BH ${s.bh} · FBH ${s.fbh} · ${s.diff > 0 ? '+' : ''}${s.diff}` : `${s.w} S · ${s.diff > 0 ? '+' : ''}${s.diff}` }));
   if (sys === 'swiss' || sys === 'melee') out.push({ title: 'Endstand', rows: fromSt(standings(T, p1[0])) });
   else if (sys === 'ko') {
@@ -628,7 +777,7 @@ function finalSections(T) {
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { BYE, SYSTEMS, HAS_FINALS, newTournament, addEntry, composeEntry, start, next, status, setScore, standings, finalSections, playable, played, pending, real, phaseMatches, validate, winner, loser, activeIds, maxStage, finalsPlan, koPlan, cadrageOpen, cadrageOpenIn, isCadrage, playedCount, propagate, assignCourts, entry, nrOf, stats, koRanking };
+if (typeof module !== 'undefined') module.exports = { BYE, SYSTEMS, HAS_FINALS, newTournament, addEntry, composeEntry, start, next, status, setScore, standings, finalSections, playable, played, pending, real, phaseMatches, validate, winner, loser, activeIds, maxStage, finalsPlan, koPlan, cadrageOpen, cadrageOpenIn, isCadrage, playedCount, propagate, assignCourts, entry, nrOf, stats, koRanking, qPlan, qPool, qRes, qInfo, qPoolOf, qFold, qkoList, drawQCad, drawQKo, qLate, qLateSlot, qStatus, qFinal };
 
 /* ===================== Oberfläche ===================== */
 const LS_KEY = 'petanque-turnierleitung-v1';
@@ -685,8 +834,8 @@ async function saveToFile() {
 // Ältere Stände: entfernte Systeme werden nicht angezeigt, bleiben aber im Speicher erhalten (DB.legacy)
 function migrate() {
   DB.legacy = DB.legacy || [];
-  DB.tournaments.forEach(t => { if (t.system === 'swiss_ko') t.system = 'maas'; if (!FORM[t.formation]) t.formation = 'doublette'; if (!t.started) t.opts.third = false; if (t.opts.field == null) t.opts.field = 16; if (!t.started) { t.opts.target = 13; t.opts.byeAgainst = 7; } });
-  const known = t => SYSTEMS[t.system] && !t.phases.some(p => !['swiss', 'ko', 'melee', 'cad', 'pre'].includes(p.type)) && !(t.system === 'ko' && t.phases.some(p => p.consolante));
+  DB.tournaments.forEach(t => { if (t.system === 'swiss_ko') t.system = 'maas'; if (!FORM[t.formation]) t.formation = 'doublette'; if (!t.started) t.opts.third = false; if (t.opts.field == null) t.opts.field = 16; if (t.opts.places == null) t.opts.places = 10; if (!t.started) { t.opts.target = 13; t.opts.byeAgainst = 7; } });
+  const known = t => SYSTEMS[t.system] && !t.phases.some(p => !['swiss', 'ko', 'melee', 'cad', 'pre', 'poule', 'qcad', 'qko'].includes(p.type)) && !(t.system === 'ko' && t.phases.some(p => p.consolante));
   DB.legacy.push(...DB.tournaments.filter(t => !known(t))); DB.tournaments = DB.tournaments.filter(known);
   DB.tournaments.forEach(t => t.phases.forEach(p => { if (p.type === 'swiss') delete p.mode; }));
   if (!DB.players) { DB.players = []; DB.tournaments.forEach(t => t.entries.forEach(e => { if (e.members && e.members.length && !/^Testverein /.test(e.club || '')) rememberPlayers(e.members, true, t.date); })); } // einmalig aus bisherigen Meldelisten aufbauen
@@ -741,8 +890,10 @@ function sideHtml(T, m, s) {
 }
 function koName(ph, r) { const k = ph.koRounds - r; return ['Finale', 'Halbfinale', 'Viertelfinale', 'Achtelfinale'][k] || `1/${Math.pow(2, k)}-Finale`; }
 function roundTitle(T, ph, r) {
-  if (ph.type === 'cad') return 'Cadrage';
+  if (ph.type === 'cad' || ph.type === 'qcad') return 'Cadrage';
   if (ph.type === 'pre') return `${r}. Runde`;
+  if (ph.type === 'poule') return r === 3 ? 'Barrage' : `Poule-Runde ${r}`;
+  if (ph.type === 'qko') return `K.O.-Runde ${r}` + (r === ph.nRounds ? ' (um die Quali-Plätze)' : '');
   if (ph.type === 'ko') return r <= (ph.skip || 0) ? `${r + (ph.from || 1) - 1}. Runde` : r === 1 && ph.cadrage && ph.koRounds > 1 ? 'Cadrage' : koName(ph, r);
   return `Runde ${r}`;
 }
@@ -750,10 +901,12 @@ function matchTag(T, ph, m) {
   if (m.third) return 'Platz 3';
   if (m.up) return ename(T, m.up) + ' hochgespielt';
   if (ph.type === 'pre' && m.round === 2) return m.kind === 'W' ? 'Gruppe A' : 'Gruppe C';
+  if (ph.type === 'poule') return `Poule ${m.pool}` + ({ W: ' · Siegerspiel', L: ' · Verliererspiel' }[m.kind] || '');
+  if (ph.type === 'qcad') return `Cadrage ${m.cno}${m.star ? '*' : ''}`;
   return '';
 }
 const curStagePhases = T => T.phases.filter(p => p.stage === maxStage(T));
-function defaultRound(T, ph) { return ph.type === 'swiss' || ph.type === 'melee' || (ph.type === 'pre' && ph.round) ? ph.round : 'all'; }
+function defaultRound(T, ph) { return ph.type === 'qko' ? ph.round : ph.type === 'swiss' || ph.type === 'melee' || (ph.type === 'pre' && ph.round) ? ph.round : 'all'; }
 function selDefault(T) {
   if (!T.phases.length) { UI.phase = UI.round = UI.tphase = UI.bphase = null; return; }
   const cp = curStagePhases(T); const ph = cp.find(p => phaseMatches(T, p).some(pending)) || cp[0];
@@ -788,6 +941,7 @@ function vTurnier(T) {
   const chk = (label, key, d) => `<label class="chk"><input type="checkbox" data-o="${key}" ${o[key] ? 'checked' : ''} ${d == null ? dis : d}><span>${label}</span></label>`;
   const optHtml = {
     rounds: () => num(T.system === 'maas' ? 'Vorrunden (Schweizer System)' : 'Anzahl Runden', 'rounds', 1, 15),
+    places: () => num('Quali-Plätze', 'places', 1, 256),
     field: () => `<label class="f">Feldgröße der K.O.-Turniere<select data-o="field" ${disF}>${[4, 8, 16, 32].map(k => `<option value="${k}" ${(o.field | 0 || 16) === k ? 'selected' : ''}>${k} Teams</option>`).join('')}</select></label>`,
   };
   const chkHtml = {
@@ -802,6 +956,12 @@ function vTurnier(T) {
   if (T.system === 'maas' && n >= 4) {
     const P = o.field | 0 || 16, pl = finalsPlan(n, P), txt = pl.map((x, c) => { let N = 2; while (N < x) N *= 2; return `${pl.length === 1 ? 'ein Feld' : 'ABCD'[c]} = ${x}` + (N > x ? ` (Cadrage: ${x - N / 2} ${x - N / 2 === 1 ? 'Spiel' : 'Spiele'}, ${N - x} ${N - x === 1 ? 'Freilos' : 'Freilose'})` : ''); });
     hint = ` Bei ${n} Teams: ${txt.join(', ')}.` + (n >= 4 * P + P / 2 ? ' Für so viele Teams ist das Feld zu klein – bitte eine größere Feldgröße wählen.' : pl.length === 1 ? ' Für mehrere Turniere bitte eine kleinere Feldgröße wählen.' : '');
+  }
+  if (T.system === 'quali' && n >= 6) {
+    const pl = qPlan(n, o.places), C = o.courts | 0, sp = k => `${k} ${k === 1 ? 'Spiel' : 'Spiele'}`;
+    hint = ` Bei ${n} Teams: ${pl.P} Poules${pl.d ? `, davon ${pl.d} ${pl.d === 1 ? 'Dreierpoule' : 'Dreierpoules'}` : ''}, gesetzt werden die ersten ${pl.F} der Setzliste. Nach den Poules sind ${pl.F} Teams weiter.`;
+    if (pl.ok) hint += (pl.cad ? ` Cadrage: ${sp(pl.cad)} auf ${pl.t} Teams.` : '') + (pl.k ? ` Danach ${pl.k} K.O.-${pl.k === 1 ? 'Runde' : 'Runden'} bis zu den ${pl.Q} Quali-Plätzen.` : ` Damit stehen die ${pl.Q} Quali-Plätze fest.`)
+      + ` Für zwei feste Bahnen je Poule werden ${2 * pl.P} Bahnen gebraucht` + (C >= 2 * pl.P ? '.' : ` (eingestellt: ${C} – dann werden die Bahnen laufend vergeben).`);
   }
   return `
   <section class="card"><h2>Turnierdaten</h2><div class="grid">
@@ -829,24 +989,26 @@ function membersOf(e) {
   return (e.players ? e.players.split(',') : [e.name || '']).map(split);
 }
 function vTeilnehmer(T) {
-  const mel = isMelee(T), canAdd = !T.started || mel, e = UI.editId ? entry(T, UI.editId) : null, k = teamSize(T), mem = e ? membersOf(e) : [];
+  const ql = T.system === 'quali', late = ql && T.started && qLateSlot(T);
+  const mel = isMelee(T), canAdd = !T.started || mel || !!late, e = UI.editId ? entry(T, UI.editId) : null, k = teamSize(T), mem = e ? membersOf(e) : [];
   const canToggle = T.started && T.phases.some(p => p.type === 'swiss' || p.type === 'melee');
   const row = i => { const m = mem[i] || {}; return `<div class="prow ${k === 1 ? 'one' : ''}" data-row="${i}"><div class="sugg" id="sugg-${i}" hidden></div>${k > 1 ? `<span class="pno">Spieler ${i + 1}</span>` : ''}
       <label class="f">Vorname<input type="text" class="e-inp" id="e-first-${i}" value="${esc(m.first || '')}" autocomplete="off"></label>
       <label class="f">Name<input type="text" class="e-inp" id="e-last-${i}" value="${esc(m.last || '')}" autocomplete="off"></label>
       <label class="f">Verein<input type="text" class="e-inp" id="e-club-${i}" value="${esc(m.club || '')}" autocomplete="off" ${i ? 'placeholder="leer = wie Spieler 1"' : ''}></label></div>`; };
-  const form = (canAdd || e) ? `<section class="card"><h2>${e ? 'Eintrag bearbeiten' : mel || k === 1 ? 'Spieler melden' : 'Team melden'} <small class="muted">· ${esc(mel ? 'Supermêlée, Einzelmeldung' : FORM[T.formation])}</small></h2>
+  const form = (canAdd || e) ? `<section class="card"><h2>${e ? 'Eintrag bearbeiten' : late ? (k === 1 ? 'Spieler nachmelden' : 'Team nachmelden') : mel || k === 1 ? 'Spieler melden' : 'Team melden'} <small class="muted">· ${esc(mel ? 'Supermêlée, Einzelmeldung' : FORM[T.formation])}</small></h2>
+    ${late && !e ? `<p class="note" style="margin-top:0">Einschreibung geschlossen: Ein verspätetes Team kommt in Poule ${late.no} (erster Dreierpoule) in Reihe 4 und spielt gegen Reihe 1.</p>` : ''}
     ${Array.from({ length: k }, (_, i) => row(i)).join('')}
     <div class="row" style="margin-top:12px"><button class="btn primary" data-act="entry-save">${e ? 'Speichern' : 'Hinzufügen'}</button>${e ? '<button class="btn" data-act="entry-cancel">Abbrechen</button>' : ''}</div></section>` : '';
   const rows = T.entries.slice().sort((a, b) => a.nr - b.nr).map(x => `<tr class="${x.active === false ? 'off' : ''}"><td class="n">${x.nr}</td><td><strong>${esc(x.name)}</strong></td><td>${esc(x.club)}</td>${k > 1 ? `<td>${esc(x.players)}</td>` : ''}
-    <td class="n"><span class="row" style="justify-content:flex-end"><button class="btn sm" data-act="entry-edit" data-id="${x.id}">Bearbeiten</button>${canToggle ? `<button class="btn sm" data-act="entry-toggle" data-id="${x.id}">${x.active === false ? 'Wieder anmelden' : 'Abmelden'}</button>` : ''}${!T.started ? `<button class="btn sm danger" data-act="entry-del" data-id="${x.id}">Löschen</button>` : ''}</span></td></tr>`).join('');
+    <td class="n"><span class="row" style="justify-content:flex-end">${ql && !T.started ? `<button class="btn sm" data-act="entry-up" data-id="${x.id}" title="Setzplatz nach oben" aria-label="Setzplatz nach oben">▲</button><button class="btn sm" data-act="entry-down" data-id="${x.id}" title="Setzplatz nach unten" aria-label="Setzplatz nach unten">▼</button>` : ''}<button class="btn sm" data-act="entry-edit" data-id="${x.id}">Bearbeiten</button>${canToggle ? `<button class="btn sm" data-act="entry-toggle" data-id="${x.id}">${x.active === false ? 'Wieder anmelden' : 'Abmelden'}</button>` : ''}${!T.started ? `<button class="btn sm danger" data-act="entry-del" data-id="${x.id}">Löschen</button>` : ''}</span></td></tr>`).join('');
   const one = k === 1, imp = Array.from({ length: k }, (_, i) => (one ? 'Vorname; Name; Verein' : `Vorname ${i + 1}; Name ${i + 1}; Verein ${i + 1}`)).join('; ');
   return `${form}
   <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${T.entries.length ? '<button class="btn wa sm" data-act="wa-list">WhatsApp: Meldeliste</button>' : ''}${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
-    ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">Nr.</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th>${k > 1 ? '<th>Spieler</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
-    ${canToggle ? '<p class="note">Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.</p>' : ''}${!mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
+    ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">${ql ? 'Setzpl.' : 'Nr.'}</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th>${k > 1 ? '<th>Spieler</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
+    ${canToggle ? '<p class="note">Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.</p>' : ''}${ql && !T.started && T.entries.length ? `<p class="note">Setzplatz = Reihenfolge der Meldeliste. Bitte die Setzliste des Verbands 1:1 in dieser Reihenfolge eintragen oder importieren, mit ▲ ▼ lässt sich ein Team verschieben. Die ersten ${qPlan(activeIds(T).length, T.opts.places).F} werden als Pouleköpfe gesetzt, der Rest wird zugelost.</p>` : ''}${!ql && !mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
   </section>
-  ${canAdd ? `<section class="card"><h2>Meldeliste importieren</h2>
+  ${canAdd && !late ? `<section class="card"><h2>Meldeliste importieren</h2>
     <p class="muted">Eine Zeile je ${one ? 'Spieler' : 'Team'}: <code>${imp}</code> – Trennzeichen Semikolon, Komma oder Tabulator (aus Excel einfügen funktioniert).</p>
     <textarea id="imp" rows="5" placeholder="${one ? 'Marie; Beispiel; BC Musterstadt' : Array.from({ length: k }, (_, i) => ['Marie; Beispiel; BC Musterstadt', 'Jean; Muster; BC Musterstadt', 'Anna; Probe; PC Beispielheim'][i]).join('; ')}"></textarea>
     <div class="row" style="margin-top:10px"><button class="btn" data-act="imp-text">Zeilen übernehmen</button><label class="btn">CSV-Datei wählen<input type="file" id="imp-file" accept=".csv,.txt" hidden></label>
@@ -899,12 +1061,13 @@ function vSpiele(T) {
   const sel = UI.round === 'all' || !keys.some(k => k.key === UI.round) ? groups : groups.filter(g => g.key === UI.round);
   const body = sel.map(({ p, r }) => {
     const list = phaseMatches(T, p).filter(m => m.round === r), vis = list.filter(m => m.auto !== BYE), done = vis.filter(m => played(m) || m.auto).length, locked = p.stage < maxStage(T);
-    return `<div class="rhead"><span>${all && T.phases.length > 1 ? esc(p.title) + ' · ' : ''}${esc(roundTitle(T, p, r))}</span><small class="muted">${done} von ${vis.length} erledigt</small></div>` + list.map(m => matchRow(T, p, m, locked || (p.type === 'pre' && p.round > m.round))).join('');
+    return `<div class="rhead"><span>${all && T.phases.length > 1 ? esc(p.title) + ' · ' : ''}${esc(roundTitle(T, p, r))}</span><small class="muted">${done} von ${vis.length} erledigt</small></div>` + list.map(m => matchRow(T, p, m, locked || ((p.type === 'pre' || p.type === 'qko') && p.round > m.round))).join('');
   }).join('') || '<div class="card empty">In dieser Auswahl gibt es keine Spiele.</div>';
   const rpt = !all && ph.type === 'swiss' && ph.repeat && (UI.round === ph.repeat) ? '<p class="note">In dieser Runde ließ sich eine Wiederholung nicht vermeiden – jede andere Paarung hätte ebenfalls eine bereits gespielte Begegnung enthalten.</p>' : '';
   const frc = !all && !rpt && ph.type === 'swiss' && ph.forced && (UI.round === ph.forced) ? '<p class="note">In dieser Runde wurden Töpfe zusammengelegt, weil sonst eine Begegnung doppelt gewesen wäre.</p>' : '';
   const lockNote = !all && ph.stage < maxStage(T) ? '<p class="note">Diese Phase ist abgeschlossen. Ergebnisse lassen sich nur ändern, wenn die letzte Auslosung zurückgenommen wird.</p>' : '';
-  return bar + pp + rp + rpt + frc + lockNote + body;
+  const q22 = phs.some(p => p.type === 'poule' || p.type === 'qcad') && !lockNote ? '<p class="note">Poule und Cadrage beginnen mit dem Punktestand 2:2. Eingetragen wird das Endergebnis.</p>' : '';
+  return bar + pp + rp + rpt + frc + lockNote + q22 + body;
 }
 
 function stTable(T, ph) {
@@ -923,7 +1086,33 @@ function phaseTable(T, ph) {
   if (ph.type === 'cad') return `<section class="card"><h2>In der Cadrage ausgeschieden</h2>${rankList(T, cadLosers(T, ph))}</section>`;
   if (ph.type === 'pre') return `<section class="card"><h2>Runde 1 und 2</h2><p class="muted">Die ersten beiden Runden teilen das Feld ein: zwei Siege = A, Sieg dann Niederlage = B, Niederlage dann Sieg = C, zwei Niederlagen = D. Die Platzierungen stehen bei den Turnieren A bis D und im Endstand.</p>${preGroups(T, ph)}</section>`;
   if (ph.type === 'ko') return `<section class="card"><h2>${esc(ph.title)} – Platzierungen</h2>${rankList(T, koRanking(T, ph))}</section>`;
+  if (ph.type === 'poule') return `<section class="card"><h2>Turnierplan – Poules</h2>${qPlanTable(T, ph)}<p class="note">Reihe 1 und 2 sind nach der Setzliste gesetzt (kleine Zahl = Setzplatz), Reihe 3 und 4 zugelost. Erster = Sieger des Siegerspiels, Zweiter = Sieger der Barrage.</p></section>`;
+  if (ph.type === 'qcad') return `<section class="card"><h2>Cadrage</h2>${qCadTable(T, ph)}</section>`;
+  if (ph.type === 'qko') return `<section class="card"><h2>K.O.-Runden</h2>${qKoTable(T, ph)}</section>`;
   return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2>${waTop10(T) ? '<button class="btn wa sm" data-act="wa-top">WhatsApp: Top 10</button>' : ''}</div>${stTable(T, ph)}${legend(ph)}</section>`;
+}
+const qCell = (T, id) => (id === BYE ? '<span class="muted">—</span>' : id ? `<strong>${esc(ename(T, id))}</strong> <small class="muted">${nrOf(T, id)}</small>` : '');
+function qPlanTable(T, ph) {
+  return `<div class="tblwrap"><table><thead><tr><th class="n">Poule</th><th>Bahnen</th><th>Reihe 1</th><th>Reihe 2</th><th>Reihe 3</th><th>Reihe 4</th><th>Erster</th><th>Zweiter</th></tr></thead><tbody>${ph.pools.map(x => { const r = qRes(T, ph, x);
+    return `<tr><td class="n">${x.no}${x.three ? '<br><small class="muted">3er</small>' : ''}</td><td>${x.courts ? x.courts.join(' + ') : '–'}</td>${x.rows.map(id => `<td>${qCell(T, id)}</td>`).join('')}<td>${qCell(T, r.first)}</td><td>${qCell(T, r.second)}</td></tr>`; }).join('')}</tbody></table></div>`;
+}
+function qLabel(T) {
+  const pp = qPhase(T), info = qInfo(T, pp), cp = qPhase(T, 'qcad'), cw = new Map();
+  if (cp) phaseMatches(T, cp).forEach(m => { if (real(winner(m))) cw.set(winner(m), `Cadrage ${m.cno}${m.star ? '*' : ''}`); });
+  return id => { const i = info.get(id); return (i ? `Poule ${i.pool}, ${i.place === 1 ? 'Erster' : 'Zweiter'}${i.three ? ' (3er)' : ''}` : '') + (cw.has(id) ? ' · Sieger ' + cw.get(id) : ''); };
+}
+const qGames = (T, ms, tag) => `<div class="tblwrap"><table><thead><tr><th>Spiel</th><th></th><th class="n">${who(T)}</th><th class="n">Ergebnis</th><th>${who(T)}</th></tr></thead><tbody>${ms.map(m => `<tr><td>${m.no}</td><td>${esc(tag(m))}</td><td class="n">${esc(sideText(T, m, 'a'))}</td><td class="n">${played(m) ? m.sa + ' : ' + m.sb : m.court ? 'Bahn ' + m.court : ''}</td><td>${esc(sideText(T, m, 'b'))}</td></tr>`).join('')}</tbody></table></div>`;
+const qList = (T, list, lab) => `<div class="tblwrap"><table><thead><tr><th class="n">Nr.</th><th>${who(T)}</th><th>Herkunft</th></tr></thead><tbody>${list.map((id, i) => `<tr><td class="n">${i + 1}</td><td>${qCell(T, id)}</td><td class="muted">${esc(lab(id))}</td></tr>`).join('')}</tbody></table></div>`;
+function qCadTable(T, ph) {
+  const lab = qLabel(T), inCad = new Set(ph.list), free = [...qInfo(T, qPhase(T)).keys()].filter(id => !inCad.has(id));
+  return `<h3>Hilfsliste (${ph.list.length} Teams)</h3>${qList(T, ph.list, lab)}<p class="note">Erster der Liste gegen Letzten, Zweiter gegen Vorletzten usw. Ein Stern * bedeutet: ein Poule-Sieger spielt mit. Treffen zwei Teams aus demselben Poule aufeinander, wird der Gegner mit dem der nächsten Partie getauscht.</p>
+    <h3>Partien</h3>${qGames(T, phaseMatches(T, ph).slice().sort((a, b) => a.cno - b.cno), m => `Cadrage ${m.cno}${m.star ? '*' : ''}`)}
+    <h3>Spielfrei (${free.length})</h3><p>${free.map(id => esc(ename(T, id)) + ` <small class="muted">(${esc(lab(id))})</small>`).join(', ') || '–'}</p>`;
+}
+function qKoTable(T, ph) {
+  const ms = phaseMatches(T, ph), rounds = [...new Set(ms.map(m => m.round))].sort((a, b) => a - b);
+  return `<h3>Hilfsliste K.O.-Runde 1 (${ph.list.length} Teams)</h3>${qList(T, ph.list, qLabel(T))}<p class="note">Spiel 1 = Erster gegen Letzten der Liste, Spiel 2 = Zweiter gegen Vorletzten usw. Ab Runde 2 spielen die Sieger der niedrigsten und der höchsten Spielnummer gegeneinander. Begegnungen aus der Poule-Runde werden durch Tauschen der Gegner vermieden.</p>`
+    + rounds.map(r => `<h3>${esc(roundTitle(T, ph, r))}</h3>${qGames(T, ms.filter(m => m.round === r).sort((a, b) => a.pos - b.pos), () => '')}`).join('');
 }
 function preGroups(T, ph) {
   const ms = phaseMatches(T, ph), r1 = ms.filter(m => m.round === 1), r2 = ms.filter(m => m.round === 2), names = ids => ids.filter(real).map(id => esc(ename(T, id))).join(', ') || '–';
@@ -959,6 +1148,7 @@ function bracketHtml(T, ph) {
   return `<div class="bracket">${cols.join('')}</div>${third ? `<h3>Spiel um Platz 3</h3><div style="max-width:220px">${bbox(T, ph, third)}</div>` : ''}`;
 }
 function vBaum(T) {
+  if (T.system === 'quali') return '<div class="card empty">Im Quali-Modus gibt es keinen Turnierbaum. Turnierplan und Hilfslisten stehen im Reiter „Tabelle“, die Partien im Reiter „Spiele“.</div>';
   const br = T.phases.filter(p => p.type === 'ko');
   if (!br.length) return `<div class="card empty">${T.started && HAS_FINALS[T.system] ? 'Der Turnierbaum erscheint, sobald die K.O.-Runde ausgelost ist.' : T.started ? 'Dieses Turniersystem hat keinen Turnierbaum.' : 'Der Turnierbaum erscheint nach dem Start eines Turniers mit K.O.-Phase.'}</div>`;
   if (!br.some(p => p.id === UI.bphase)) UI.bphase = br[0].id;
@@ -979,7 +1169,7 @@ function vDaten(T) {
     <p class="muted">Schreibt alle Turniere und die Spielerdatenbank direkt in diese HTML-Datei. So sind die Daten auch auf einem anderen Gerät oder nach dem Löschen des Browserspeichers wieder da – einfach die Datei öffnen. ${window.showSaveFilePicker ? 'Beim ersten Speichern fragt der Browser, wohin: bitte diese Datei auswählen und überschreiben. Danach speichert der Knopf ohne Nachfrage.' : 'Dieser Browser lädt dafür eine neue Datei herunter; bitte die bisherige Datei damit ersetzen. (Chrome und Edge können die Datei direkt überschreiben.)'}</p>
     <div class="row"><button class="btn primary" data-act="filesave">In Datei speichern</button><span class="muted">${DB.fileSavedAt ? 'Zuletzt gespeichert: ' + new Date(DB.fileSavedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) + (unsaved() ? ' · <strong style="color:var(--danger)">seitdem neue oder geänderte Spieler</strong>' : ' · Spielerdatenbank aktuell') : 'Noch nicht in der Datei gespeichert.'}</span></div></section>
   <section class="card"><h2>Drucken</h2><p class="muted">Erzeugt eine Druckansicht (auch „Als PDF speichern“). Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde.</p>
-    <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand</button></div></section>
+    <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel</button>` : ''}</div></section>
   <section class="card"><h2>Endstand exportieren</h2><p class="muted">Erzeugt eine CSV-Datei mit dem Endstand, die sich in Excel öffnen lässt.</p>
     <div class="row"><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
   <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
@@ -1063,10 +1253,39 @@ function printDoc(T, doc) {
   } else if (doc === 'tabelle') {
     ensureSel(T); const ph = T.phases.find(p => p.id === UI.tphase) || T.phases.find(p => p.id === UI.phase) || T.phases[0];
     h = printHead(T, 'Tabelle') + phaseTable(T, ph);
+  } else if (doc === 'turnierplan') {
+    h = printHead(T, 'Turnierplan') + qPlanTable(T, qPhase(T));
+  } else if (doc === 'laufzettel') {
+    h = qPoule(T);
   } else if (doc === 'endstand') {
-    h = printHead(T, 'Endstand') + finalSections(T).map(s => `<h2>${esc(s.title)}</h2>${rankList(T, s.rows)}`).join('');
+    h = printHead(T, T.system === 'quali' ? 'Ergebnisliste' : 'Endstand') + finalSections(T).map(s => `<h2>${esc(s.title)}</h2>${rankList(T, s.rows)}`).join('');
   }
   $('#print').innerHTML = h; setTimeout(() => window.print(), 50);
+}
+
+// Poule-Laufzettel: einer je Poule, wird dem Team aus Reihe 1 ausgehändigt
+function qPoule(T) {
+  const ph = qPhase(T), head = printHead(T, 'Poule-Laufzettel').replace('<h1>', '<h1 style="font-size:12pt">');
+  return ph.pools.map(x => {
+    const g = qPool(T, ph, x.no), c = i => (x.courts ? 'Bahn ' + x.courts[i] : ''), row = (i, id) => `<tr><td>Reihe ${i + 1}</td><td>${id === BYE ? '—' : esc(ename(T, id))}</td><td>${id === BYE ? '' : esc((entry(T, id) || {}).club || '')}</td><td>${id === BYE ? '' : nrOf(T, id)}</td></tr>`;
+    const side = (m, s, txt) => (real(m[s]) ? esc(ename(T, m[s])) + ` <small>(${txt})</small>` : esc(txt));
+    const res = m => (m.auto ? 'spielfrei' : played(m) ? m.sa + ' : ' + m.sb : '____ : ____');
+    const game = (r, m, a, b, note) => `<tr><td>${r}</td><td>${m.no}</td><td>${m.court || (m.kind === 'B' || m.kind === 'L' ? c(1) : c(0))}</td><td>${side(m, 'a', a)}</td><td>${side(m, 'b', b)}</td><td>${res(m)}</td><td>${note || ''}</td></tr>`;
+    const games = [
+      x.three ? `<tr><td>1</td><td>${g.A.no}</td><td></td><td>${side(g.A, 'a', 'Reihe 1')}</td><td>—</td><td>spielfrei</td><td></td></tr>` : game('1', g.A, 'Reihe 1', 'Reihe 4'),
+      game('1', g.B, 'Reihe 2', 'Reihe 3'),
+      game('2', g.W, 'Sieger Spiel ' + g.A.no, 'Sieger Spiel ' + g.B.no, 'Sieger = Erster'),
+      x.three ? `<tr><td>2</td><td>${g.L.no}</td><td></td><td>${esc('Verlierer Spiel ' + g.B.no)}</td><td>—</td><td>spielfrei</td><td></td></tr>` : game('2', g.L, 'Verlierer Spiel ' + g.A.no, 'Verlierer Spiel ' + g.B.no, 'Verlierer scheidet aus'),
+      game('Barrage', g.X, 'Verlierer Spiel ' + g.W.no, 'Sieger Spiel ' + g.L.no, 'Sieger = Zweiter'),
+    ].join('');
+    const r = qRes(T, ph, x), sig = '<td style="height:9mm"></td>';
+    return `<div class="lz">${head}<h2>Poule ${x.no}${x.three ? ' (Dreierpoule)' : ''}${x.courts ? ' – Bahnen ' + x.courts.join(' + ') : ''}</h2>
+      <table><thead><tr><th></th><th>Team</th><th>Verein</th><th>Setzpl.</th></tr></thead><tbody>${x.rows.map((id, i) => row(i, id)).join('')}</tbody></table>
+      <p class="sub">Alle Spiele beginnen mit dem Punktestand 2:2. Nach jeder Runde das Endergebnis eintragen.</p>
+      <table><thead><tr><th>Runde</th><th>Spiel</th><th>Bahn</th><th>Team</th><th>Team</th><th>Ergebnis</th><th></th></tr></thead><tbody>${games}</tbody></table>
+      <table><tbody><tr><td style="width:22%">Erster</td><td>${real(r.first) ? esc(ename(T, r.first)) : ''}</td></tr><tr><td>Zweiter</td><td>${real(r.second) ? esc(ename(T, r.second)) : ''}</td></tr></tbody></table>
+      <table><thead><tr><th style="width:22%">Unterschrift Teamführer</th><th></th></tr></thead><tbody>${x.rows.filter(real).map((id, i) => `<tr><td>Reihe ${x.rows.indexOf(id) + 1}</td>${sig}</tr>`).join('')}</tbody></table></div>`;
+  }).join('');
 }
 
 /* ---------- Export / Import ---------- */
@@ -1098,6 +1317,11 @@ const DEMO_F = ['Marie', 'Jean', 'Anna', 'Paul', 'Lea', 'Max', 'Nora', 'Tom', 'I
 const DEMO = ['Cochonnet', 'Carreau', 'Tireur', 'Pointeur', 'Fanny', 'Biberon', 'Devant', 'Plombée', 'Portée', 'Raspaille', 'Bouchon', 'Mène', 'Donnée', 'Rafle', 'Palet', 'Boulodrome'];
 
 /* ---------- Aktionen ---------- */
+// Setzliste: Team mit dem Nachbarn tauschen (nur vor dem Start)
+function moveEntry(id, d) {
+  const T = cur(); if (T.started) return; const L = T.entries.slice().sort((a, b) => a.nr - b.nr), i = L.findIndex(e => e.id === id), j = i + d;
+  if (i < 0 || j < 0 || j >= L.length) return; const x = L[i].nr; L[i].nr = L[j].nr; L[j].nr = x; save(); render();
+}
 function afterDraw(T) { selDefault(T); save(); render(); }
 const ACT = {
   tab: el => { UI.tab = el.dataset.tab; UI.editId = null; render(); window.scrollTo(0, 0); },
@@ -1114,10 +1338,14 @@ const ACT = {
     const members = Array.from({ length: k }, (_, i) => ({ first: val('e-first-' + i), last: val('e-last-' + i), club: val('e-club-' + i) }));
     const miss = members.findIndex(m => !m.first && !m.last);
     if (miss >= 0) { toast(k === 1 ? 'Bitte Vorname oder Name eintragen.' : `Bitte Vorname oder Name für Spieler ${miss + 1} eintragen.`); const f = $('#e-first-' + miss); if (f) f.focus(); return; }
-    if (UI.editId) { Object.assign(entry(T, UI.editId), composeEntry(members)); rememberPlayers(members, false); UI.editId = null; } else { addEntry(T, { members }); rememberPlayers(members, true, T.date); }
+    if (UI.editId) { Object.assign(entry(T, UI.editId), composeEntry(members)); rememberPlayers(members, false); UI.editId = null; }
+    else if (T.system === 'quali' && T.started) { let r; if (!guard(() => { r = qLate(T, { members }); })) return; rememberPlayers(members, true, T.date); toast(`${r.entry.name} spielt in Poule ${r.pool}, Reihe 4.`); }
+    else { addEntry(T, { members }); rememberPlayers(members, true, T.date); }
     save(); render(); const f = $('#e-first-0'); if (f) f.focus();
   },
   'entry-cancel': () => { UI.editId = null; render(); },
+  'entry-up': el => moveEntry(el.dataset.id, -1),
+  'entry-down': el => moveEntry(el.dataset.id, 1),
   'entry-edit': el => { UI.editId = el.dataset.id; render(); window.scrollTo(0, 0); const f = $('#e-first-0'); if (f) f.focus(); },
   'entry-del': el => { const T = cur(); T.entries = T.entries.filter(e => e.id !== el.dataset.id); T.entries.sort((a, b) => a.nr - b.nr).forEach((e, i) => { e.nr = i + 1; }); save(); render(); },
   'entry-clear': () => { const T = cur(); ask(`Wirklich alle ${T.entries.length} ${who(T, true)} aus der Meldeliste löschen? Das lässt sich nicht rückgängig machen.`, () => { T.entries = []; UI.editId = null; save(); render(); toast('Meldeliste geleert.'); }, 'Alle löschen'); },

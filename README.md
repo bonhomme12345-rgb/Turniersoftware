@@ -1,6 +1,6 @@
 # Pétanque-Turnierleitung
 
-Turnierleitung für Pétanque als installierbare Web-App: Supermêlée, Schweizer System, K.-o. und Maastrichter. Läuft nach der ersten Installation komplett offline. Die Turnierdaten bleiben im jeweiligen Gerät.
+Turnierleitung für Pétanque als installierbare Web-App: Supermêlée, Schweizer System, K.-o., Maastrichter und Quali (Poule mit Barrage, Cadrage, K.-o. nach dem HPV-Ablaufplan). Läuft nach der ersten Installation komplett offline. Die Turnierdaten bleiben im jeweiligen Gerät.
 
 **App öffnen und installieren:** https://bonhomme12345-rgb.github.io/Turniersoftware/
 
