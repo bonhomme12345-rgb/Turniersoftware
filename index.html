@@ -210,7 +210,7 @@ const SYSTEMS = {
   melee: { name: 'Supermêlée', min: 4, opts: ['rounds'],
     desc: 'Einzelmeldung: In jeder Runde werden Partner und Gegner neu gelost. Unter 24 Spielern wird in Doubletten gespielt (bei Bedarf mit einer Triplette aufgefüllt), ab 24 Spielern in Tripletten (bei Bedarf mit möglichst wenigen Doubletten). Einzelwertung nach Siegen und Punktedifferenz. Spieler können jederzeit ein- und aussteigen.' },
   quali: { name: 'Quali (Poule + Barrage + K.O.)', min: 6, opts: ['places'],
-    desc: 'Ablauf nach dem HPV-Ablaufplan zur DM-Qualifikation, mit Barrage in den Poules. Die Meldeliste ist die Setzliste des Verbands (Setzplatz = Reihenfolge). Poules zu 4 Teams, Dreierpoules nach Teilnehmerzahl immer am Ende. Je Poule werden 2 Teams gesetzt (Reihe 1 von Poule 1 abwärts, Reihe 2 von hinten), Reihe 3 und 4 werden zugelost. Runde 1: Reihe 1 gegen 4 und Reihe 2 gegen 3. Runde 2: Sieger gegen Sieger (Sieger = Poule-Erster), Verlierer gegen Verlierer (Verlierer scheidet aus). Barrage: Verlierer des Siegerspiels gegen Sieger des Verliererspiels (Sieger = Poule-Zweiter). Danach Cadrage, bis ein lückenloses K.O. bis zu den Quali-Plätzen möglich ist, und K.O.-Runden. Poule und Cadrage beginnen mit 2:2.' },
+    desc: 'Ablauf nach dem HPV-Ablaufplan zur DM-Qualifikation, mit Barrage in den Poules. Die Meldeliste ist die Setzliste des Verbands (Setzplatz = Reihenfolge). Poules zu 4 Teams, Dreierpoules nach Teilnehmerzahl immer am Ende. Je Poule werden 2 Teams gesetzt (Reihe 1 von Poule 1 abwärts, Reihe 2 von hinten), Reihe 3 und 4 werden zugelost, das Team mit der höheren Setzplatz-Nummer kommt in Reihe 4. Runde 1: Reihe 1 gegen 4 und Reihe 2 gegen 3. Runde 2: Sieger gegen Sieger (Sieger = Poule-Erster), Verlierer gegen Verlierer (Verlierer scheidet aus). Barrage: Verlierer des Siegerspiels gegen Sieger des Verliererspiels (Sieger = Poule-Zweiter). Danach Cadrage, bis ein lückenloses K.O. bis zu den Quali-Plätzen möglich ist, und K.O.-Runden. Poule und Cadrage beginnen mit 2:2.' },
 };
 const HAS_FINALS = { maas: 1 };
 
@@ -503,6 +503,8 @@ function startQuali(T, ids) {
   const pools = Array.from({ length: P }, (_, i) => ({ no: i + 1, three: i >= P - pl.d, rows: [ids[i], ids[2 * P - 1 - i], null, null] }));
   pools.forEach(x => { x.rows[2] = rest.shift(); });
   pools.forEach(x => { x.rows[3] = x.three ? BYE : rest.shift(); });
+  // Die beiden zugelosten Teams: das mit der höheren Setzplatz-Nummer steht in Reihe 4
+  pools.forEach(x => { if (!x.three && nrOf(T, x.rows[2]) > nrOf(T, x.rows[3])) x.rows.push(...x.rows.splice(2, 2).reverse()); });
   if ((T.opts.courts | 0) >= 2 * P) pools.forEach(x => { x.courts = [2 * x.no - 1, 2 * x.no]; });
   const ph = addPhase(T, { type: 'poule', title: 'Poules', ids, pools, plan: pl }), g = new Map();
   const mk = (x, kind, round, o) => { const c2 = kind === 'B' || kind === 'L'; g.set(x.no + kind, addMatch(T, ph, Object.assign({ round, pos: (x.no - 1) * 2 + (c2 ? 1 : 0), br: true, pool: x.no, kind, pcourt: x.courts ? x.courts[c2 ? 1 : 0] : null }, o))); };
@@ -1086,7 +1088,7 @@ function phaseTable(T, ph) {
   if (ph.type === 'cad') return `<section class="card"><h2>In der Cadrage ausgeschieden</h2>${rankList(T, cadLosers(T, ph))}</section>`;
   if (ph.type === 'pre') return `<section class="card"><h2>Runde 1 und 2</h2><p class="muted">Die ersten beiden Runden teilen das Feld ein: zwei Siege = A, Sieg dann Niederlage = B, Niederlage dann Sieg = C, zwei Niederlagen = D. Die Platzierungen stehen bei den Turnieren A bis D und im Endstand.</p>${preGroups(T, ph)}</section>`;
   if (ph.type === 'ko') return `<section class="card"><h2>${esc(ph.title)} – Platzierungen</h2>${rankList(T, koRanking(T, ph))}</section>`;
-  if (ph.type === 'poule') return `<section class="card"><h2>Turnierplan – Poules</h2>${qPlanTable(T, ph)}<p class="note">Reihe 1 und 2 sind nach der Setzliste gesetzt (kleine Zahl = Setzplatz), Reihe 3 und 4 zugelost. Erster = Sieger des Siegerspiels, Zweiter = Sieger der Barrage.</p></section>`;
+  if (ph.type === 'poule') return `<section class="card"><h2>Turnierplan – Poules</h2>${qPlanTable(T, ph)}<p class="note">Reihe 1 und 2 sind nach der Setzliste gesetzt (kleine Zahl = Setzplatz), Reihe 3 und 4 zugelost (höhere Setzplatz-Nummer in Reihe 4). Erster = Sieger des Siegerspiels, Zweiter = Sieger der Barrage.</p></section>`;
   if (ph.type === 'qcad') return `<section class="card"><h2>Cadrage</h2>${qCadTable(T, ph)}</section>`;
   if (ph.type === 'qko') return `<section class="card"><h2>K.O.-Runden</h2>${qKoTable(T, ph)}</section>`;
   return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2>${waTop10(T) ? '<button class="btn wa sm" data-act="wa-top">WhatsApp: Top 10</button>' : ''}</div>${stTable(T, ph)}${legend(ph)}</section>`;
