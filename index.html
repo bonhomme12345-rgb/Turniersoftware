@@ -838,7 +838,7 @@ function migrate() {
   const known = t => SYSTEMS[t.system] && !t.phases.some(p => !['swiss', 'ko', 'melee', 'cad', 'pre', 'poule', 'qcad', 'qko'].includes(p.type)) && !(t.system === 'ko' && t.phases.some(p => p.consolante));
   DB.legacy.push(...DB.tournaments.filter(t => !known(t))); DB.tournaments = DB.tournaments.filter(known);
   DB.tournaments.forEach(t => t.phases.forEach(p => { if (p.type === 'swiss') delete p.mode; }));
-  if (!DB.players) { DB.players = []; DB.tournaments.forEach(t => t.entries.forEach(e => { if (e.members && e.members.length && !/^Testverein /.test(e.club || '')) rememberPlayers(e.members, true, t.date); })); } // einmalig aus bisherigen Meldelisten aufbauen
+  if (!DB.players) { DB.players = []; DB.tournaments.forEach(t => t.entries.forEach(e => { if (e.members && e.members.length && !e.demo && !/^Testverein /.test(e.club || '')) rememberPlayers(e.members, true, t.date); })); } // einmalig aus bisherigen Meldelisten aufbauen
 }
 const rankMode = ph => ph.type;
 
@@ -1313,8 +1313,17 @@ function importEntries(T, text) {
   });
   return n;
 }
-const DEMO_F = ['Marie', 'Jean', 'Anna', 'Paul', 'Lea', 'Max', 'Nora', 'Tom', 'Ida', 'Ben', 'Eva', 'Jan'];
-const DEMO = ['Cochonnet', 'Carreau', 'Tireur', 'Pointeur', 'Fanny', 'Biberon', 'Devant', 'Plombée', 'Portée', 'Raspaille', 'Bouchon', 'Mène', 'Donnée', 'Rafle', 'Palet', 'Boulodrome'];
+// Testeinträge: zufällige, realistische Namen und Vereine (jede Kombination aus Vor- und Nachname nur einmal je Turnier)
+const DEMO_F = ['Anna', 'Andreas', 'Angelika', 'Bernd', 'Birgit', 'Christian', 'Claudia', 'Daniel', 'Doris', 'Elke', 'Erika', 'Frank', 'Gabi', 'Gerd', 'Hans', 'Heike', 'Helga', 'Ingrid', 'Jürgen', 'Karin', 'Klaus', 'Laura', 'Lukas', 'Manfred', 'Marie', 'Markus', 'Martina', 'Michael', 'Monika', 'Nicole', 'Paul', 'Peter', 'Petra', 'Rainer', 'Renate', 'Sabine', 'Sandra', 'Stefan', 'Susanne', 'Thomas', 'Uwe', 'Ursula', 'Volker', 'Werner', 'Wolfgang', 'Jean', 'Pierre', 'Michel', 'Sophie', 'Claire', 'Luc', 'Nathalie'];
+const DEMO = ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann', 'Koch', 'Richter', 'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Braun', 'Zimmermann', 'Krüger', 'Hartmann', 'Lange', 'Werner', 'Krause', 'Lehmann', 'Köhler', 'Herrmann', 'Walter', 'Mayer', 'Huber', 'Kaiser', 'Fuchs', 'Peters', 'Lang', 'Scholz', 'Möller', 'Weiß', 'Jung', 'Hahn', 'Vogel', 'Keller', 'Günther', 'Frank', 'Berger', 'Roth', 'Beck', 'Lorenz', 'Baumann', 'Franke', 'Albrecht', 'Dubois', 'Martin', 'Bernard', 'Lefèvre', 'Moreau', 'Laurent', 'Roux', 'Fontaine'];
+const DEMO_C = ['Boule-Club Wetzlar', 'PC Gießen', 'Boulefreunde Marburg', 'BC Limburg', 'Pétanque-Club Frankfurt', 'Boule Club Bad Homburg', 'BF Wiesbaden', 'PC Darmstadt', 'Boulefreunde Fulda', 'BC Kassel', 'Pétanque Hanau', 'Boule-Club Offenbach', 'PC Friedberg', 'Boulefreunde Herborn', 'BC Weilburg', 'Pétanque Bad Nauheim', 'Boule-Club Dillenburg', 'PC Butzbach'];
+function demoMembers(T, k) {
+  const used = new Set(T.entries.flatMap(e => membersOf(e).map(m => pdbKey(m.first, m.last)))), pick = a => a[Math.floor(Math.random() * a.length)];
+  const club = pick(DEMO_C), names = new Set(T.entries.map(e => e.name));
+  const one = () => { let m; for (let t = 0; t < 200; t++) { m = { first: pick(DEMO_F), last: pick(DEMO), club }; if (!used.has(pdbKey(m.first, m.last))) break; } return m; };
+  let ms; for (let t = 0; t < 50; t++) { ms = Array.from({ length: k }, one); if (new Set(ms.map(m => pdbKey(m.first, m.last))).size === k && !names.has(composeEntry(ms).name)) break; } // auch der Teamname kommt nur einmal vor
+  return ms;
+}
 
 /* ---------- Aktionen ---------- */
 // Setzliste: Team mit dem Nachbarn tauschen (nur vor dem Start)
@@ -1352,8 +1361,8 @@ const ACT = {
   'entry-toggle': el => { const e = entry(cur(), el.dataset.id); e.active = e.active === false; save(); render(); },
   'imp-text': () => { const T = cur(), n = importEntries(T, $('#imp').value); save(); render(); toast(n ? `${n} Einträge übernommen.` : 'Keine Zeilen gefunden.'); },
   demo: () => {
-    const T = cur(), n = Math.max(1, Math.min(128, +$('#demo-n').value || 0)), base = T.entries.length, k = teamSize(T);
-    for (let i = 0; i < n; i++) { const j = base + i; addEntry(T, { members: Array.from({ length: k }, (_, p) => ({ first: DEMO_F[(j * 3 + p * 5) % DEMO_F.length], last: DEMO[(j + p * 7) % DEMO.length] + ' ' + (j + 1), club: 'Testverein ' + (j % 6 + 1) })) }); }
+    const T = cur(), n = Math.max(1, Math.min(128, +$('#demo-n').value || 0)), k = teamSize(T);
+    for (let i = 0; i < n; i++) addEntry(T, { members: demoMembers(T, k) }).demo = true;
     save(); render();
   },
   print: el => printDoc(cur(), el.dataset.doc),
