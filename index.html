@@ -966,16 +966,15 @@ function vTeilnehmer(T) {
     <div class="row" style="margin-top:12px"><button class="btn primary" data-act="entry-save">${e ? 'Speichern' : 'Hinzufügen'}</button>${e ? '<button class="btn" data-act="entry-cancel">Abbrechen</button>' : ''}</div></section>` : '';
   const rows = T.entries.slice().sort((a, b) => a.nr - b.nr).map(x => `<tr class="${x.active === false ? 'off' : ''}"><td class="n">${x.nr}</td><td><strong>${esc(x.name)}</strong></td><td>${esc(x.club)}</td>${k > 1 ? `<td>${esc(x.players)}</td>` : ''}
     <td class="n"><span class="row" style="justify-content:flex-end">${ql && !T.started ? `<button class="btn sm" data-act="entry-up" data-id="${x.id}" title="Setzplatz nach oben" aria-label="Setzplatz nach oben">▲</button><button class="btn sm" data-act="entry-down" data-id="${x.id}" title="Setzplatz nach unten" aria-label="Setzplatz nach unten">▼</button>` : ''}<button class="btn sm" data-act="entry-edit" data-id="${x.id}">Bearbeiten</button>${canToggle ? `<button class="btn sm" data-act="entry-toggle" data-id="${x.id}">${x.active === false ? 'Wieder anmelden' : 'Abmelden'}</button>` : ''}${!T.started ? `<button class="btn sm danger" data-act="entry-del" data-id="${x.id}">Löschen</button>` : ''}</span></td></tr>`).join('');
-  const one = k === 1, imp = Array.from({ length: k }, (_, i) => (one ? 'Vorname; Name; Verein' : `Vorname ${i + 1}; Name ${i + 1}; Verein ${i + 1}`)).join('; ');
+  const one = k === 1, imp = importHead(T).join(' | ');
   return `${form}
   <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${T.entries.length ? '<button class="btn sm" data-act="print" data-doc="meldeliste" title="Meldeliste drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="meldeliste" title="Meldeliste als Bilddatei herunterladen">Als Bild (JPEG)</button>' : ''}${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
     ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">${ql ? 'Setzpl.' : 'Nr.'}</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th>${k > 1 ? '<th>Spieler</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
     ${canToggle ? '<p class="note">Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.</p>' : ''}${ql && !T.started && T.entries.length ? `<p class="note">Setzplatz = Reihenfolge der Meldeliste. Bitte die Setzliste des Verbands 1:1 in dieser Reihenfolge eintragen oder importieren, mit ▲ ▼ lässt sich ein Team verschieben. Die ersten ${qPlan(activeIds(T).length, T.opts.places).F} werden als Pouleköpfe gesetzt, der Rest wird zugelost.</p>` : ''}${!ql && !mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
   </section>
   ${canAdd && !late ? `<section class="card"><h2>Meldeliste importieren</h2>
-    <p class="muted">Eine Zeile je ${one ? 'Spieler' : 'Team'}: <code>${imp}</code> – Trennzeichen Semikolon, Komma oder Tabulator (aus Excel einfügen funktioniert).</p>
-    <textarea id="imp" rows="5" placeholder="${one ? 'Marie; Beispiel; BC Musterstadt' : Array.from({ length: k }, (_, i) => ['Marie; Beispiel; BC Musterstadt', 'Jean; Muster; BC Musterstadt', 'Anna; Probe; PC Beispielheim'][i]).join('; ')}"></textarea>
-    <div class="row" style="margin-top:10px"><button class="btn" data-act="imp-text">Zeilen übernehmen</button><label class="btn">CSV-Datei wählen<input type="file" id="imp-file" accept=".csv,.txt" hidden></label>
+    <p class="muted">Excel-Liste (.xlsx oder .xls) mit einer Zeile je ${one ? 'Spieler' : 'Team'} und je Spieler drei Spalten: <code>${imp}</code>. Eine Kopfzeile darf drin sein, gelesen wird das erste Tabellenblatt. Am einfachsten die Vorlage herunterladen, in Excel ausfüllen und hier laden. CSV-Dateien gehen auch.</p>
+    <div class="row"><label class="btn primary">Excel-Datei wählen<input type="file" id="imp-file" accept=".xlsx,.xlsm,.xls,.csv,.txt" hidden></label><button class="btn" data-act="imp-tpl">Excel-Vorlage herunterladen</button>
     <span class="muted" style="margin-left:auto">Zum Ausprobieren:</span><input class="inp" id="demo-n" type="number" min="2" max="128" value="16" style="width:76px"><button class="btn" data-act="demo">Testeinträge erzeugen</button></div></section>` : ''}`;
 }
 
@@ -1378,19 +1377,141 @@ function csvEnd(T) {
   finalSections(T).forEach(s => s.rows.forEach(r => { const e = entry(T, r.id) || {}; rows.push([++n, s.title, r.place, e.name, e.club, e.players, r.info || '']); }));
   return csv(rows);
 }
-function importEntries(T, text) {
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean); if (!lines.length) return 0;
+// Meldeliste aus Excel (.xlsx und das ältere .xls) oder CSV – ohne Zusatzbibliothek, funktioniert offline
+function csvRows(text) {
   const cnt = c => (text.match(new RegExp(c, 'g')) || []).length; const sep = cnt('\t') ? '\t' : cnt(';') >= cnt(',') && cnt(';') ? ';' : cnt(',') ? ',' : ';';
+  return text.replace(/^﻿/, '').split(/\r?\n/).map(l => l.split(sep).map(x => x.trim().replace(/^"(.*)"$/, '$1')));
+}
+function importRows(T, rows) {
   const k = teamSize(T); let n = 0;
-  lines.forEach((l, i) => {
-    const f = l.split(sep).map(x => x.trim().replace(/^"(.*)"$/, '$1'));
+  rows.map(r => r.map(x => String(x == null ? '' : x).trim())).filter(r => r.some(Boolean)).forEach((f, i) => {
     if (i === 0 && /^(vorname|name|team|teamname|mannschaft)/i.test(f[0])) return; // Kopfzeile
-    const members = []; for (let p = 0; p < k; p++) { const m = { first: f[p * 3] || '', last: f[p * 3 + 1] || '', club: f[p * 3 + 2] || '' }; if (m.first || m.last) members.push(m); }
+    const members = []; for (let p = 0; p < k; p++) { const m = { first: f[p * 3] || '', last: f[p * 3 + 1] || '', club: f[p * 3 + 2] || '' }; if (m.first || m.last) { if (!m.club && members.length) m.club = members[members.length - 1].club; members.push(m); } }
     if (!members.length) return;
     addEntry(T, { members }); rememberPlayers(members, true, T.date); n++;
   });
   return n;
 }
+const importEntries = (T, text) => importRows(T, csvRows(text));
+const u16 = (d, o) => d[o] | (d[o + 1] << 8), u32 = (d, o) => (d[o] | (d[o + 1] << 8) | (d[o + 2] << 16)) + d[o + 3] * 16777216;
+const xlNum = v => (Number.isInteger(v) ? String(v) : String(Math.round(v * 1e9) / 1e9));
+async function unzip(d, want) {
+  let e = d.length - 22; while (e >= 0 && u32(d, e) !== 0x06054b50) e--; if (e < 0) throw new Error('zip');
+  const out = {}; let p = u32(d, e + 16);
+  for (let i = 0, n = u16(d, e + 10); i < n; i++) {
+    const meth = u16(d, p + 10), cs = u32(d, p + 20), nl = u16(d, p + 28), name = new TextDecoder().decode(d.subarray(p + 46, p + 46 + nl)), lh = u32(d, p + 42);
+    p += 46 + nl + u16(d, p + 30) + u16(d, p + 32);
+    if (!want(name)) continue;
+    const st = lh + 30 + u16(d, lh + 26) + u16(d, lh + 28), raw = d.subarray(st, st + cs);
+    out[name] = meth === 0 ? raw : new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  }
+  return out;
+}
+async function xlsxRows(d) {
+  const f = await unzip(d, n => /^xl\/(workbook\.xml|_rels\/workbook\.xml\.rels|sharedStrings\.xml|worksheets\/[^/]+\.xml)$/.test(n));
+  const xml = n => f[n] && new DOMParser().parseFromString(new TextDecoder().decode(f[n]), 'application/xml'), tag = (x, t) => [...x.getElementsByTagNameNS('*', t)];
+  let sheet = 'xl/worksheets/sheet1.xml';
+  try { const wb = xml('xl/workbook.xml'), id = tag(wb, 'sheet')[0].getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    const t = tag(xml('xl/_rels/workbook.xml.rels'), 'Relationship').find(r => r.getAttribute('Id') === id).getAttribute('Target'); sheet = t.startsWith('/') ? t.slice(1) : 'xl/' + t; } catch (e) { /* erstes Blatt unter dem Standardnamen */ }
+  if (!f[sheet]) sheet = Object.keys(f).filter(n => n.startsWith('xl/worksheets/')).sort()[0];
+  const ss = f['xl/sharedStrings.xml'] ? tag(xml('xl/sharedStrings.xml'), 'si').map(si => tag(si, 't').filter(t => t.parentNode.localName !== 'rPh').map(t => t.textContent).join('')) : [];
+  const rows = [];
+  tag(xml(sheet), 'c').forEach(c => {
+    const ref = c.getAttribute('r') || '', col = [...ref.replace(/\d+/g, '')].reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1, row = (+ref.replace(/\D+/g, '') || 1) - 1;
+    const t = c.getAttribute('t'), v = (tag(c, 'v')[0] || {}).textContent;
+    const val = t === 's' ? ss[+v] : t === 'inlineStr' ? tag(c, 't').map(x => x.textContent).join('') : t === 'b' ? (v === '1' ? 'WAHR' : 'FALSCH') : t === 'str' || t === 'e' ? v : v != null && v !== '' && !isNaN(+v) ? xlNum(+v) : v;
+    if (col >= 0 && val != null) (rows[row] = rows[row] || [])[col] = val;
+  });
+  return Array.from(rows, r => Array.from(r || [], x => x || ''));
+}
+// .xls (Excel 97–2003): Compound-File-Container mit dem BIFF8-Datenstrom „Workbook“
+function xlsRows(d) {
+  const ss = 1 << u16(d, 30), ms = 1 << u16(d, 32), sec = n => d.subarray(512 + n * ss, 512 + (n + 1) * ss), END = 0xFFFFFFFA;
+  const difat = []; for (let i = 0; i < 109; i++) difat.push(u32(d, 76 + i * 4));
+  for (let s = u32(d, 68), c = u32(d, 72); c-- > 0 && s < END;) { const x = sec(s); for (let i = 0; i < ss / 4 - 1; i++) difat.push(u32(x, i * 4)); s = u32(x, ss - 4); }
+  const fat = []; difat.filter(s => s < END).slice(0, u32(d, 44)).forEach(s => { const x = sec(s); for (let i = 0; i < ss / 4; i++) fat.push(u32(x, i * 4)); });
+  const chain = (s, tbl) => { const out = []; while (s < END && out.length < 1e6) { out.push(s); s = tbl[s]; } return out; };
+  const read = s => { const ch = chain(s, fat), out = new Uint8Array(ch.length * ss); ch.forEach((n, i) => out.set(sec(n), i * ss)); return out; };
+  const dir = read(u32(d, 48)), ents = [];
+  for (let o = 0; o + 128 <= dir.length; o += 128) { const nl = u16(dir, o + 64); ents.push({ name: String.fromCharCode(...Array.from({ length: Math.max(0, nl / 2 - 1) }, (_, i) => u16(dir, o + i * 2))), type: dir[o + 66], start: u32(dir, o + 116), size: u32(dir, o + 120) }); }
+  const wbE = ents.find(e => e.type === 2 && /^(Workbook|Book)$/.test(e.name)); if (!wbE) throw new Error('xls');
+  let wb;
+  if (wbE.size < u32(d, 56)) { // kleiner Datenstrom liegt im Mini-Stream
+    const mini = read(ents[0].start), mfat = []; const mf = read(u32(d, 60)); for (let i = 0; i < u32(d, 64) * ss / 4; i++) mfat.push(u32(mf, i * 4));
+    const ch = chain(wbE.start, mfat); wb = new Uint8Array(ch.length * ms); ch.forEach((n, i) => wb.set(mini.subarray(n * ms, (n + 1) * ms), i * ms));
+  } else wb = read(wbE.start);
+  wb = wb.subarray(0, wbE.size);
+  const recs = []; for (let o = 0; o + 4 <= wb.length;) { const t = u16(wb, o), l = u16(wb, o + 2); recs.push({ t, o: o + 4, l }); o += 4 + l; }
+  const str = (buf, o, cch, bounds) => { // Zeichen lesen; an CONTINUE-Grenzen steht ein neues Flag-Byte
+    let hi = buf[o++] & 1, out = ''; const fl = buf[o - 1];
+    let runs = 0, ext = 0; if (fl & 8) { runs = u16(buf, o); o += 2; } if (fl & 4) { ext = u32(buf, o); o += 4; }
+    while (out.length < cch && o < buf.length) {
+      const b = bounds.find(x => x >= o) ?? buf.length; if (b === o) { hi = buf[o++] & 1; continue; }
+      const take = Math.max(1, Math.min(cch - out.length, Math.floor((b - o) / (hi ? 2 : 1))));
+      for (let i = 0; i < take; i++) { out += String.fromCharCode(hi ? u16(buf, o) : buf[o]); o += hi ? 2 : 1; } }
+    return { s: out, o: o + runs * 4 + ext };
+  };
+  const sst = []; let first = null;
+  for (let i = 0; i < recs.length; i++) {
+    const r = recs[i];
+    if (r.t === 0x85 && first == null && wb[r.o + 5] === 0) first = u32(wb, r.o);
+    if (r.t === 0xFC) {
+      const parts = [wb.subarray(r.o, r.o + r.l)], bounds = []; let tot = r.l;
+      while (recs[i + 1] && recs[i + 1].t === 0x3C) { const c = recs[++i]; bounds.push(tot); parts.push(wb.subarray(c.o, c.o + c.l)); tot += c.l; }
+      const buf = new Uint8Array(tot); let q = 0; parts.forEach(x => { buf.set(x, q); q += x.length; });
+      let o = 8; for (let n = u32(buf, 4); n-- > 0 && o + 3 <= tot;) { const cch = u16(buf, o); const x = str(buf, o + 2, cch, bounds); sst.push(x.s); o = x.o; }
+    }
+  }
+  const rows = [], put = (row, col, v) => { (rows[row] = rows[row] || [])[col] = v; };
+  const rk = v => { let n; if (v & 2) n = (v | 0) >> 2; else { const b = new DataView(new ArrayBuffer(8)); b.setUint32(0, v & 0xFFFFFFFC); n = b.getFloat64(0); } return v & 1 ? n / 100 : n; };
+  const f64 = o => new DataView(wb.buffer, wb.byteOffset + o, 8).getFloat64(0, true);
+  let i = recs.findIndex(r => r.o - 4 === first); if (i < 0) i = recs.findIndex((r, j) => r.t === 0x809 && j > 0);
+  for (let pend = null; i >= 0 && ++i < recs.length;) {
+    const { t, o, l } = recs[i]; if (t === 0x0A) break;
+    const row = u16(wb, o), col = u16(wb, o + 2);
+    if (t === 0xFD) put(row, col, sst[u32(wb, o + 6)] || '');
+    else if (t === 0x204) put(row, col, str(wb, o + 8, u16(wb, o + 6), []).s);
+    else if (t === 0x203) put(row, col, xlNum(f64(o + 6)));
+    else if (t === 0x27E) put(row, col, xlNum(rk(u32(wb, o + 6))));
+    else if (t === 0xBD) { for (let c = col, p = o + 4; p + 6 <= o + l - 2; p += 6, c++) put(row, c, xlNum(rk(u32(wb, p + 2)))); }
+    else if (t === 0x06) { if (u16(wb, o + 12) === 0xFFFF && wb[o + 6] === 0) pend = [row, col]; else if (u16(wb, o + 12) !== 0xFFFF) put(row, col, xlNum(f64(o + 6))); }
+    else if (t === 0x207 && pend) { put(pend[0], pend[1], str(wb, o + 2, u16(wb, o), []).s); pend = null; }
+  }
+  return Array.from(rows, r => Array.from(r || [], x => x || ''));
+}
+async function readTable(file) {
+  const d = new Uint8Array(await file.arrayBuffer());
+  if (d[0] === 0x50 && d[1] === 0x4B) return xlsxRows(d);
+  if (d[0] === 0xD0 && d[1] === 0xCF && d[2] === 0x11 && d[3] === 0xE0) return xlsRows(d);
+  let text; try { text = new TextDecoder('utf-8', { fatal: true }).decode(d); } catch (e) { text = new TextDecoder('windows-1252').decode(d); } // CSV aus älterem Excel
+  return csvRows(text);
+}
+// Excel-Vorlage (.xlsx) mit Kopfzeile passend zur Formation
+function xlsxFile(rows) {
+  const enc = s => new TextEncoder().encode(s), x = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const col = i => (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : '') + String.fromCharCode(65 + (i % 26));
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="${rows[0].length}" width="22" customWidth="1"/></cols><sheetData>${rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${col(ci)}${ri + 1}" t="inlineStr"${ri ? '' : ' s="1"'}><is><t>${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData></worksheet>`;
+  const files = {
+    '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+    '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+    'xl/workbook.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Meldeliste" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/_rels/workbook.xml.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+    'xl/styles.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Standard" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
+    'xl/worksheets/sheet1.xml': sheet,
+  };
+  const crcT = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = b => { let c = 0xFFFFFFFF; for (const v of b) c = crcT[(c ^ v) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const parts = [], cd = []; let off = 0;
+  const le = (n, w) => Array.from({ length: w }, (_, i) => (n >>> (8 * i)) & 255);
+  Object.entries(files).forEach(([name, txt]) => {
+    const nm = enc(name), data = enc(txt), c = crc(data), common = [...le(20, 2), ...le(0, 2), ...le(0, 2), ...le(0, 2), ...le(0x21, 2), ...le(c, 4), ...le(data.length, 4), ...le(data.length, 4), ...le(nm.length, 2), ...le(0, 2)];
+    const lh = new Uint8Array([...le(0x04034b50, 4), ...common, ...nm]); parts.push(lh, data);
+    cd.push(new Uint8Array([...le(0x02014b50, 4), ...le(20, 2), ...common, ...le(0, 2), ...le(0, 2), ...le(0, 2), ...le(0, 4), ...le(off, 4), ...nm])); off += lh.length + data.length;
+  });
+  const cdl = cd.reduce((a, b) => a + b.length, 0), n = cd.length;
+  return new Blob([...parts, ...cd, new Uint8Array([...le(0x06054b50, 4), 0, 0, 0, 0, ...le(n, 2), ...le(n, 2), ...le(cdl, 4), ...le(off, 4), 0, 0])], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+const importHead = T => { const k = teamSize(T); return Array.from({ length: k }, (_, i) => (k === 1 ? ['Vorname', 'Name', 'Verein'] : [`Vorname ${i + 1}`, `Name ${i + 1}`, `Verein ${i + 1}`])).flat(); };
 // Testeinträge: zufällige, realistische Namen und Vereine (jede Kombination aus Vor- und Nachname nur einmal je Turnier)
 const DEMO_F = ['Anna', 'Andreas', 'Angelika', 'Bernd', 'Birgit', 'Christian', 'Claudia', 'Daniel', 'Doris', 'Elke', 'Erika', 'Frank', 'Gabi', 'Gerd', 'Hans', 'Heike', 'Helga', 'Ingrid', 'Jürgen', 'Karin', 'Klaus', 'Laura', 'Lukas', 'Manfred', 'Marie', 'Markus', 'Martina', 'Michael', 'Monika', 'Nicole', 'Paul', 'Peter', 'Petra', 'Rainer', 'Renate', 'Sabine', 'Sandra', 'Stefan', 'Susanne', 'Thomas', 'Uwe', 'Ursula', 'Volker', 'Werner', 'Wolfgang', 'Jean', 'Pierre', 'Michel', 'Sophie', 'Claire', 'Luc', 'Nathalie'];
 const DEMO = ['Müller', 'Schmidt', 'Schneider', 'Fischer', 'Weber', 'Meyer', 'Wagner', 'Becker', 'Schulz', 'Hoffmann', 'Koch', 'Richter', 'Klein', 'Wolf', 'Schröder', 'Neumann', 'Schwarz', 'Braun', 'Zimmermann', 'Krüger', 'Hartmann', 'Lange', 'Werner', 'Krause', 'Lehmann', 'Köhler', 'Herrmann', 'Walter', 'Mayer', 'Huber', 'Kaiser', 'Fuchs', 'Peters', 'Lang', 'Scholz', 'Möller', 'Weiß', 'Jung', 'Hahn', 'Vogel', 'Keller', 'Günther', 'Frank', 'Berger', 'Roth', 'Beck', 'Lorenz', 'Baumann', 'Franke', 'Albrecht', 'Dubois', 'Martin', 'Bernard', 'Lefèvre', 'Moreau', 'Laurent', 'Roux', 'Fontaine'];
@@ -1437,7 +1558,7 @@ const ACT = {
   'entry-del': el => { const T = cur(); T.entries = T.entries.filter(e => e.id !== el.dataset.id); T.entries.sort((a, b) => a.nr - b.nr).forEach((e, i) => { e.nr = i + 1; }); save(); render(); },
   'entry-clear': () => { const T = cur(); ask(`Wirklich alle ${T.entries.length} ${who(T, true)} aus der Meldeliste löschen? Das lässt sich nicht rückgängig machen.`, () => { T.entries = []; UI.editId = null; save(); render(); toast('Meldeliste geleert.'); }, 'Alle löschen'); },
   'entry-toggle': el => { const e = entry(cur(), el.dataset.id); e.active = e.active === false; save(); render(); },
-  'imp-text': () => { const T = cur(), n = importEntries(T, $('#imp').value); save(); render(); toast(n ? `${n} Einträge übernommen.` : 'Keine Zeilen gefunden.'); },
+  'imp-tpl': () => { const T = cur(); download('Meldeliste_Vorlage_' + (isMelee(T) ? 'Supermelee' : { tete: 'Tete-a-tete', doublette: 'Doublette', triplette: 'Triplette' }[T.formation]) + '.xlsx', xlsxFile([importHead(T)]), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); },
   demo: () => {
     const T = cur(), n = Math.max(1, Math.min(128, +$('#demo-n').value || 0)), k = teamSize(T);
     for (let i = 0; i < n; i++) addEntry(T, { members: demoMembers(T, k) }).demo = true;
@@ -1502,7 +1623,7 @@ document.addEventListener('change', e => {
     save(); if (el.type !== 'number') render(); else el.value = T.opts[k];
     return;
   }
-  if (el.id === 'imp-file' && el.files[0]) { const r = new FileReader(); r.onload = () => { const n = importEntries(T, String(r.result)); save(); render(); toast(`${n} Einträge übernommen.`); }; r.readAsText(el.files[0]); return; }
+  if (el.id === 'imp-file' && el.files[0]) { const f = el.files[0]; el.value = ''; readTable(f).then(rows => { const n = importRows(T, rows); save(); render(); toast(n ? `${n} Einträge übernommen.` : 'In der Datei wurden keine Einträge gefunden.'); }).catch(() => toast('Die Datei konnte nicht gelesen werden. Bitte in Excel als .xlsx speichern und erneut versuchen.')); return; }
   if (el.id === 'pdb-file' && el.files[0]) {
     const r = new FileReader();
     r.onload = () => { try { const d = JSON.parse(String(r.result)), list = Array.isArray(d) ? d : d.players; if (!Array.isArray(list)) throw new Error('x'); let n = 0;
