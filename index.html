@@ -1055,6 +1055,7 @@ function vSpiele(T) {
     ${st.state === 'done' ? '<button class="btn primary" data-act="tab" data-tab="tabelle">Endstand ansehen</button>' : ''}
     ${UI.undo.length ? '<button class="btn" data-act="undo">Letzte Auslosung zurücknehmen</button>' : ''}
     <button class="btn wa" data-act="wa-pair" title="Paarungen der gewählten Auswahl als WhatsApp-Nachricht">WhatsApp: Paarungen</button>
+    <button class="btn" data-act="jpg" data-doc="paarungen" title="Paarungen der gewählten Auswahl als Bilddatei herunterladen">Paarungen als Bild</button>
     <button class="btn wa" data-act="wa-list" title="Meldeliste mit Startnummern als WhatsApp-Nachricht">WhatsApp: Meldeliste</button>
     ${tablePhase(T) && waRanking(T) ? '<button class="btn wa" data-act="wa-top" title="Komplette Rangliste für WhatsApp">WhatsApp: Rangliste</button>' : ''}
     ${st.state === 'play' ? '<button class="btn test" data-act="rnd" title="Trägt in alle offenen Spiele mit feststehenden Gegnern ein Zufallsergebnis ein">Test: alle Ergebnisse eintragen</button>' : ''}</div></div>`;
@@ -1132,7 +1133,7 @@ function vTabelle(T) {
   ensureSel(T);
   if (UI.tphase !== 'final' && !T.phases.some(p => p.id === UI.tphase)) UI.tphase = T.phases[0].id;
   const done = status(T).state === 'done';
-  const pills = `<div class="pills">${T.phases.map(p => `<button class="pill ${p.id === UI.tphase ? 'on' : ''}" data-act="tphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}<button class="pill ${UI.tphase === 'final' ? 'on' : ''}" data-act="tphase" data-id="final">Endstand${done ? '' : ' (vorläufig)'}</button></div>`;
+  const pills = `<div class="pills">${T.phases.map(p => `<button class="pill ${p.id === UI.tphase ? 'on' : ''}" data-act="tphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}<button class="pill ${UI.tphase === 'final' ? 'on' : ''}" data-act="tphase" data-id="final">Endstand${done ? '' : ' (vorläufig)'}</button><button class="btn sm" data-act="jpg" data-doc="tabelle" style="margin-left:auto" title="Die gewählte Tabelle als Bilddatei herunterladen">Als Bild (JPEG)</button></div>`;
   if (UI.tphase === 'final') return pills + finalSections(T).map(s => `<section class="card"><h2>${esc(s.title)}</h2>${rankList(T, s.rows)}</section>`).join('');
   return pills + phaseTable(T, T.phases.find(p => p.id === UI.tphase));
 }
@@ -1172,6 +1173,8 @@ function vDaten(T) {
     <div class="row"><button class="btn primary" data-act="filesave">In Datei speichern</button><span class="muted">${DB.fileSavedAt ? 'Zuletzt gespeichert: ' + new Date(DB.fileSavedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) + (unsaved() ? ' · <strong style="color:var(--danger)">seitdem neue oder geänderte Spieler</strong>' : ' · Spielerdatenbank aktuell') : 'Noch nicht in der Datei gespeichert.'}</span></div></section>
   <section class="card"><h2>Drucken</h2><p class="muted">Erzeugt eine Druckansicht (auch „Als PDF speichern“). Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde.</p>
     <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel</button>` : ''}</div></section>
+  <section class="card"><h2>Als Bild herunterladen (JPEG)</h2><p class="muted">Speichert die Ansicht als Bilddatei, z. B. zum Verschicken per WhatsApp oder für einen Bildschirm am Platz. Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde, die Tabelle auf die im Reiter „Tabelle“ gewählte Phase.</p>
+    <div class="row"><button class="btn" data-act="jpg" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen</button><button class="btn" data-act="jpg" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button>` : ''}</div></section>
   <section class="card"><h2>Endstand exportieren</h2><p class="muted">Erzeugt eine CSV-Datei mit dem Endstand, die sich in Excel öffnen lässt.</p>
     <div class="row"><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
   <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
@@ -1244,14 +1247,18 @@ function selMatches(T) {
   const ph = T.phases.find(p => p.id === UI.phase), ms = phaseMatches(T, ph).filter(m => m.auto !== BYE && (UI.round === 'all' || m.round === UI.round));
   return { ph, phOf, ms, title: ph.title + (UI.round === 'all' ? '' : ' – ' + roundTitle(T, ph, UI.round)) };
 }
-function printDoc(T, doc) {
+function printDoc(T, doc) { $('#print').innerHTML = docHtml(T, doc); setTimeout(() => window.print(), 50); }
+function docHtml(T, doc) {
   let h = '';
+  if (doc === 'tabelle' && UI.tphase === 'final') doc = 'endstand';
   if (doc === 'meldeliste') {
     const mel = isMelee(T);
     h = printHead(T, 'Meldeliste') + `<table><thead><tr><th>Nr.</th><th>${mel ? 'Name' : 'Team'}</th><th>Verein</th>${mel ? '' : '<th>Spieler</th>'}</tr></thead><tbody>${T.entries.slice().sort((a, b) => a.nr - b.nr).map(e => `<tr><td>${e.nr}</td><td>${esc(e.name)}</td><td>${esc(e.club)}</td>${mel ? '' : `<td>${esc(e.players)}</td>`}</tr>`).join('')}</tbody></table>`;
   } else if (doc === 'paarungen') {
-    const { phOf, ms, title } = selMatches(T);
-    h = printHead(T, 'Paarungen ' + title) + `<table><thead><tr><th>Bahn</th><th>Spiel</th><th></th><th></th><th>Ergebnis</th><th></th></tr></thead><tbody>${ms.map(m => `<tr><td>${m.court || (m.auto || m.bye ? 'Freilos' : '')}</td><td>${m.no}</td><td>${esc((UI.phase === 'all' ? phOf(m).title + ' · ' : '') + (matchTag(T, phOf(m), m) || roundTitle(T, phOf(m), m.round)))}</td><td>${esc(sideText(T, m, 'a'))}</td><td>${played(m) ? m.sa + ' : ' + m.sb : '&nbsp;&nbsp;&nbsp;:'}</td><td>${esc(m.auto || m.bye ? '–' : sideText(T, m, 'b'))}</td></tr>`).join('')}</tbody></table>`;
+    const { phOf, ms, title } = selMatches(T), multi = new Set(ms.map(m => m.ph + ':' + m.round)).size > 1;
+    const tag = m => [multi ? (UI.phase === 'all' ? phOf(m).title + ' · ' : '') + roundTitle(T, phOf(m), m.round) : '', matchTag(T, phOf(m), m)].filter(Boolean).join(' · ');
+    const showTag = ms.some(m => tag(m));
+    h = printHead(T, 'Paarungen ' + title) + `<table><thead><tr><th>Bahn</th><th>Spiel</th>${showTag ? `<th>${multi ? 'Runde' : 'Hinweis'}</th>` : ''}<th>${who(T)}</th><th>Ergebnis</th><th>${who(T)}</th></tr></thead><tbody>${ms.map(m => `<tr><td>${m.court || (m.auto || m.bye ? 'Freilos' : '')}</td><td>${m.no}</td>${showTag ? `<td>${esc(tag(m))}</td>` : ''}<td>${esc(m.auto ? ename(T, m.auto) : sideText(T, m, 'a'))}</td><td>${played(m) ? m.sa + ' : ' + m.sb : m.auto ? 'weiter' : '&nbsp;&nbsp;&nbsp;:'}</td><td>${esc(m.auto || m.bye ? '–' : sideText(T, m, 'b'))}</td></tr>`).join('')}</tbody></table>`;
   } else if (doc === 'tabelle') {
     ensureSel(T); const ph = T.phases.find(p => p.id === UI.tphase) || T.phases.find(p => p.id === UI.phase) || T.phases[0];
     h = printHead(T, 'Tabelle') + phaseTable(T, ph);
@@ -1262,7 +1269,78 @@ function printDoc(T, doc) {
   } else if (doc === 'endstand') {
     h = printHead(T, T.system === 'quali' ? 'Ergebnisliste' : 'Endstand') + finalSections(T).map(s => `<h2>${esc(s.title)}</h2>${rankList(T, s.rows)}`).join('');
   }
-  $('#print').innerHTML = h; setTimeout(() => window.print(), 50);
+  return h;
+}
+
+/* ---------- Als Bild (JPEG) ---------- */
+// Die Druckansicht wird in Überschriften, Absätze und Tabellen zerlegt und auf ein Canvas gezeichnet –
+// ohne Zusatzbibliothek, funktioniert offline in Web-App und Windows-Programm
+function htmlBlocks(html) {
+  const root = document.createElement('div'), out = []; root.innerHTML = html;
+  const cellOf = c => { const k = c.cloneNode(true), sub = [...k.querySelectorAll('small')].map(x => x.textContent.trim()).filter(Boolean).join(' · ');
+    k.querySelectorAll('small,button').forEach(x => x.remove());
+    return { main: k.textContent.replace(/\s+/g, ' ').trim(), sub, head: c.tagName === 'TH', n: c.classList.contains('n'), bold: !!k.querySelector('strong,b') || c.classList.contains('win') }; };
+  const walk = el => { for (const c of el.children) {
+    const t = c.tagName, txt = () => c.textContent.replace(/\s+/g, ' ').trim();
+    if (t === 'BUTTON' || t === 'INPUT') continue;
+    if (/^H[1-4]$/.test(t)) out.push({ kind: t.toLowerCase(), text: txt() });
+    else if (t === 'P' || c.classList.contains('sub')) { if (txt()) out.push({ kind: t === 'P' ? 'p' : 'sub', text: txt() }); }
+    else if (t === 'TABLE') out.push({ kind: 'table', rows: [...c.rows].map(r => [...r.cells].map(cellOf)).filter(r => r.length) });
+    else walk(c);
+  } };
+  walk(root); return out;
+}
+function jpegFromHtml(html, name) {
+  const F = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', PAD = 32, CP = 10, MAXC = 380;
+  const cv = document.createElement('canvas'); let cx = cv.getContext('2d');
+  const font = (sz, w) => `${w || 400} ${sz}px ${F}`, mw = (t, f) => { cx.font = f; return cx.measureText(t).width; };
+  const fit = (t, f, max) => { if (mw(t, f) <= max) return t; while (t.length > 1 && mw(t + '…', f) > max) t = t.slice(0, -1); return t + '…'; };
+  const wrap = (t, f, max) => { const out = []; let line = ''; t.split(' ').forEach(w => { const x = line ? line + ' ' + w : w; if (line && mw(x, f) > max) { out.push(line); line = w; } else line = x; }); if (line) out.push(line); return out; };
+  const blocks = htmlBlocks(html), cf = c => (c.head ? font(12, 700) : font(15, c.bold ? 700 : 400)), sf = font(12);
+  blocks.filter(b => b.kind === 'table').forEach(b => {
+    const n = Math.max(...b.rows.map(r => r.length)); b.w = Array(n).fill(0);
+    b.rows.forEach(r => r.forEach((c, i) => { const x = mw(c.head ? c.main.toUpperCase() : c.main, cf(c)) + (c.sub ? 8 + mw(c.sub, sf) : 0); b.w[i] = Math.max(b.w[i], Math.min(MAXC, x) + 2 * CP); }));
+  });
+  const W = Math.max(720, ...blocks.filter(b => b.w).map(b => b.w.reduce((a, x) => a + x, 0))) + 2 * PAD, inner = W - 2 * PAD;
+  const stamp = 'Pétanque-Turnierleitung · Stand ' + new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+  const pass = draw => {
+    let y = PAD;
+    const text = (t, f, col, x, yy, align) => { if (!draw) return; cx.font = f; cx.fillStyle = col; cx.textAlign = align || 'left'; cx.textBaseline = 'middle'; cx.fillText(t, x, yy); };
+    blocks.forEach(b => {
+      if (b.kind === 'h1') { text(b.text, font(26, 700), '#1d1b18', PAD, y + 16); y += 38; }
+      else if (b.kind === 'sub') { wrap(b.text, font(14), inner).forEach(l => { text(l, font(14), '#555', PAD, y + 10); y += 21; }); y += 8; }
+      else if (b.kind === 'h2' || b.kind === 'h3' || b.kind === 'h4') { const sz = b.kind === 'h2' ? 19 : 16; y += 12; text(b.text, font(sz, 700), '#7a3b1e', PAD, y + 13); y += sz + 14; }
+      else if (b.kind === 'p') { wrap(b.text, font(13), inner).forEach(l => { text(l, font(13), '#666', PAD, y + 9); y += 18; }); y += 6; }
+      else if (b.kind === 'table') {
+        b.rows.forEach((r, ri) => {
+          const head = r.every(c => c.head), h = head ? 30 : 32, tw = b.w.reduce((a, x) => a + x, 0);
+          if (draw) { cx.fillStyle = head ? '#ece6dc' : ri % 2 ? '#ffffff' : '#f7f4ef'; cx.fillRect(PAD, y, tw, h); cx.fillStyle = '#d9d2c6'; cx.fillRect(PAD, y + h - 1, tw, 1); }
+          let x = PAD;
+          r.forEach((c, i) => {
+            const w = b.w[i] || 0, avail = w - 2 * CP, f = cf(c), t0 = c.head ? c.main.toUpperCase() : c.main;
+            const main = fit(t0, f, avail), m = mw(main, f), rest = avail - m - 8, sub = c.sub && rest + 1 >= Math.min(mw(c.sub, sf), 24) ? fit(c.sub, sf, rest + 1) : '';
+            const total = m + (sub ? 8 + mw(sub, sf) : 0), x0 = c.n ? x + w - CP - total : x + CP;
+            text(main, f, c.head ? '#555' : '#1d1b18', x0, y + h / 2);
+            if (sub) text(sub, sf, '#777', x0 + m + 8, y + h / 2 + 1);
+            x += w;
+          });
+          y += h;
+        });
+        y += 10;
+      }
+    });
+    y += 10; text(stamp, font(12), '#888', PAD, y + 8); return y + 16 + PAD;
+  };
+  const H = pass(false), sc = Math.max(1, Math.min(2, Math.floor(30000 / H)));
+  cv.width = W * sc; cv.height = H * sc; cx = cv.getContext('2d'); cx.scale(sc, sc);
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); pass(true);
+  cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
+}
+const JPG_NAME = { paarungen: '_Paarungen', tabelle: '_Tabelle', endstand: '_Endstand', turnierplan: '_Turnierplan' };
+function saveJpeg(T, doc) {
+  const d = doc === 'tabelle' && UI.tphase === 'final' ? 'endstand' : doc, html = docHtml(T, d);
+  if (!htmlBlocks(html).some(b => b.kind === 'table' && b.rows.length > 1)) return toast('Für diese Auswahl gibt es noch nichts anzuzeigen.');
+  jpegFromHtml(html, fname(T, (JPG_NAME[d] || '_' + d) + '.jpg'));
 }
 
 // Poule-Laufzettel: einer je Poule, wird dem Team aus Reihe 1 ausgehändigt
@@ -1368,6 +1446,7 @@ const ACT = {
     save(); render();
   },
   print: el => printDoc(cur(), el.dataset.doc),
+  jpg: el => saveJpeg(cur(), el.dataset.doc),
   'exp-csv-end': () => { const T = cur(); download(fname(T, '_Endstand.csv'), csvEnd(T), 'text/csv;charset=utf-8'); },
   't-new': () => { const t = newTournament(); DB.tournaments.push(t); DB.current = t.id; UI.undo = []; UI.tab = 'turnier'; selDefault(t); save(); render(); },
   't-open': el => { DB.current = el.dataset.id; UI.undo = []; selDefault(cur()); save(); render(); },
