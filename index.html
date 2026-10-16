@@ -1056,7 +1056,7 @@ function vSpiele(T) {
     ${UI.undo.length ? '<button class="btn" data-act="undo">Letzte Auslosung zurücknehmen</button>' : ''}
     <button class="btn wa" data-act="wa-pair" title="Paarungen der gewählten Auswahl als WhatsApp-Nachricht">WhatsApp: Paarungen</button>
     <button class="btn wa" data-act="wa-list" title="Meldeliste mit Startnummern als WhatsApp-Nachricht">WhatsApp: Meldeliste</button>
-    ${tablePhase(T) && waTop10(T) ? '<button class="btn wa" data-act="wa-top" title="Tabelle als Top-10-Liste für WhatsApp">WhatsApp: Top 10</button>' : ''}
+    ${tablePhase(T) && waRanking(T) ? '<button class="btn wa" data-act="wa-top" title="Komplette Rangliste für WhatsApp">WhatsApp: Rangliste</button>' : ''}
     ${st.state === 'play' ? '<button class="btn test" data-act="rnd" title="Trägt in alle offenen Spiele mit feststehenden Gegnern ein Zufallsergebnis ein">Test: alle Ergebnisse eintragen</button>' : ''}</div></div>`;
   const pp = T.phases.length > 1 ? `<div class="pills"><button class="pill ${all ? 'on' : ''}" data-act="phase" data-id="all">Alle</button>${T.phases.map(p => `<button class="pill ${!all && p.id === ph.id ? 'on' : ''}" data-act="phase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}</div>` : '';
   const rp = keys.length > 1 ? `<div class="pills"><button class="pill ${UI.round === 'all' ? 'on' : ''}" data-act="round" data-r="all">Alle</button>${keys.map(k => `<button class="pill ${UI.round === k.key ? 'on' : ''}" data-act="round" data-r="${k.key}">${esc(k.label)}</button>`).join('')}</div>` : '';
@@ -1091,7 +1091,7 @@ function phaseTable(T, ph) {
   if (ph.type === 'poule') return `<section class="card"><h2>Turnierplan – Poules</h2>${qPlanTable(T, ph)}<p class="note">Reihe 1 und 2 sind nach der Setzliste gesetzt (kleine Zahl = Setzplatz), Reihe 3 und 4 zugelost (höhere Setzplatz-Nummer in Reihe 4). Erster = Sieger des Siegerspiels, Zweiter = Sieger der Barrage.</p></section>`;
   if (ph.type === 'qcad') return `<section class="card"><h2>Cadrage</h2>${qCadTable(T, ph)}</section>`;
   if (ph.type === 'qko') return `<section class="card"><h2>K.O.-Runden</h2>${qKoTable(T, ph)}</section>`;
-  return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2>${waTop10(T) ? '<button class="btn wa sm" data-act="wa-top">WhatsApp: Top 10</button>' : ''}</div>${stTable(T, ph)}${legend(ph)}</section>`;
+  return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2>${waRanking(T) ? '<button class="btn wa sm" data-act="wa-top">WhatsApp: Rangliste</button>' : ''}</div>${stTable(T, ph)}${legend(ph)}</section>`;
 }
 const qCell = (T, id) => (id === BYE ? '<span class="muted">—</span>' : id ? `<strong>${esc(ename(T, id))}</strong> <small class="muted">${nrOf(T, id)}</small>` : '');
 function qPlanTable(T, ph) {
@@ -1217,15 +1217,15 @@ function waEntries(T) {
   const act = list.filter(e => e.active !== false).length;
   return waHead(T, 'Meldeliste') + `\n${act} ${isMelee(T) ? 'Spieler' : 'Teams'}\n\n` + list.map(e => `${e.nr}:  ${e.name}` + (e.active === false ? ' (abgemeldet)' : '')).join('\n');
 }
-// Tabelle als kurze Top-10-Liste (Schweizer System, Vorrunde Maastrichter, Supermêlée)
+// Komplette Rangliste (Schweizer System, Vorrunde Maastrichter, Supermêlée)
 const tablePhase = T => T.phases.find(p => p.type === 'swiss' || p.type === 'melee');
-function waTop10(T) {
+function waRanking(T) {
   const ph = tablePhase(T); if (!ph || !ph.round) return '';
   const ms = phaseMatches(T, ph), cur = ms.filter(m => m.round === ph.round), running = cur.some(m => !played(m)), sw = ph.type === 'swiss';
   if (running && !ms.some(m => m.round < ph.round)) return '';
   const title = running ? `Zwischenstand (Runde ${ph.round} läuft)` : `Tabelle nach Runde ${ph.round}`;
   return waHead(T, title + (T.phases.length > 1 ? ' · ' + ph.title : '')) + '\n\n' +
-    standings(T, ph).slice(0, 10).map(r => `${r.place}. ${ename(T, r.id)} – ${r.w} ${r.w === 1 ? 'Sieg' : 'Siege'}${sw ? ', BH ' + r.bh : ''}, ${r.diff > 0 ? '+' : ''}${r.diff}`).join('\n');
+    standings(T, ph).map(r => `${r.place}. ${ename(T, r.id)} – ${r.w} ${r.w === 1 ? 'Sieg' : 'Siege'}${sw ? ', BH ' + r.bh : ''}, ${r.diff > 0 ? '+' : ''}${r.diff}` + ((entry(T, r.id) || {}).active === false ? ' (abgemeldet)' : '')).join('\n');
 }
 function openShare(title, text) {
   if (!text) return toast('Für diese Auswahl gibt es noch nichts zu teilen.');
@@ -1390,7 +1390,7 @@ const ACT = {
   'pdb-csv': () => download('Spielerdatenbank.csv', csv([['Vorname', 'Name', 'Verein', 'Turniere', 'Zuletzt']].concat(pdb().map(p => [p.first, p.last, p.club, p.n || 0, p.seen || '']))), 'text/csv;charset=utf-8'),
   filesave: () => { saveToFile(); },
   'wa-pair': () => openShare('Paarungen für WhatsApp', waPairings(cur())),
-  'wa-top': () => openShare('Top 10 für WhatsApp', waTop10(cur())),
+  'wa-top': () => openShare('Rangliste für WhatsApp', waRanking(cur())),
   'wa-list': () => openShare('Meldeliste für WhatsApp', waEntries(cur())),
   'share-close': () => { $('#share').hidden = true; },
   'share-copy': () => {
