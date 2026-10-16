@@ -296,13 +296,43 @@ function propagate(T) {
       for (const side of ['a', 'b']) {
         const src = side === 'a' ? m.srcA : m.srcB; if (!src) continue;
         const sm = byId.get(src.m); const v = src.lose ? loser(sm) : winner(sm);
-        if (m[side] !== v) { m[side] = v; m.sa = m.sb = null; m.court = null; changed = true; }
+        if (m[side] !== v) { m[side] = v; m.sa = m.sb = null; m.court = null; delete m.wo; changed = true; }
       }
       let auto = null;
       if (m.a === BYE && m.b === BYE) auto = BYE; else if (m.a === BYE && m.b) auto = m.b; else if (m.b === BYE && m.a) auto = m.a;
       if ((m.auto || null) !== auto) { if (auto) { m.auto = auto; m.sa = m.sb = null; m.court = null; } else delete m.auto; changed = true; }
     }
   }
+  if (qForfeit(T)) propagate(T);
+}
+// Quali: Ein abgemeldetes Team verliert jedes offene Spiel kampflos 13:0 (m.wo = abgemeldetes Team).
+// Sind beide abgemeldet, gewinnt das mit dem besseren Setzplatz.
+function qForfeit(T) {
+  if (T.system !== 'quali') return false;
+  const off = id => real(id) && (entry(T, id) || {}).active === false, t = T.opts.target | 0 || 13;
+  let any = false;
+  for (const m of T.matches) {
+    if (played(m) || m.auto || !real(m.a) || !real(m.b) || !(off(m.a) || off(m.b))) continue;
+    const la = off(m.a) && (!off(m.b) || nrOf(T, m.a) > nrOf(T, m.b));
+    m.sa = la ? 0 : t; m.sb = la ? t : 0; m.wo = la ? m.a : m.b; m.court = null; any = true;
+  }
+  return any;
+}
+// Quali: Wieder anmelden geht nur, solange auf den kampflos gewerteten Spielen noch nichts aufbaut.
+// Gibt einen Hinweistext zurück, wenn es nicht geht, sonst null (dann sind die Spiele wieder offen).
+function qReactivate(T, id) {
+  const no = 'Das Team kann nicht wieder angemeldet werden: Auf seinen kampflos verlorenen Spielen baut schon die nächste Auslosung oder ein gespieltes Folgespiel auf.';
+  const ms = T.matches.filter(m => m.wo === id);
+  for (const m of ms) {
+    const ph = T.phases.find(p => p.id === m.ph);
+    if (ph.type === 'poule' && (qPhase(T, 'qcad') || qPhase(T, 'qko'))) return no;
+    if (ph.type === 'qcad' && qPhase(T, 'qko')) return no;
+    if (ph.type === 'qko' && ph.round > m.round) return no;
+  }
+  const reopen = X => { entry(X, id).active = true; X.matches.forEach(m => { if (m.wo === id) { m.sa = m.sb = null; delete m.wo; } }); propagate(X); };
+  const clone = JSON.parse(JSON.stringify(T)); reopen(clone);
+  if (playedCount(clone) < playedCount(T) - ms.length) return no; // ein gespieltes Folgespiel würde gelöscht
+  reopen(T); assignCourts(T); return null;
 }
 // Die Cadrage eines Turniers wird immer erst komplett zu Ende gespielt: Solange in einem Turnier noch ein
 // Cadrage-Spiel offen ist, ruhen dessen übrige Spiele (m.hold). Die anderen Turniere laufen ungehindert weiter.
@@ -610,8 +640,8 @@ function qFinal(T) {
     if (nach.length) out.push({ title: 'Nachrücker', rows: num(nach) });
   } else {
     elim.forEach(s => s.rows.forEach(r => gone.add(r.id)));
-    const alive = activeIds(T).filter(id => !gone.has(id));
-    out.push({ title: `Noch im Turnier (${alive.length})`, rows: dash(alive) });
+    const alive = T.entries.slice().sort((a, b) => a.nr - b.nr).map(e => e.id).filter(id => !gone.has(id) && poolOf(id));
+    out.push({ title: `Noch im Turnier (${alive.length})`, rows: dash(alive).map(r => (entry(T, r.id).active === false ? Object.assign(r, { info: `${r.info ? r.info + ', ' : ''}abgemeldet` }) : r)) });
   }
   return out.concat(elim);
 }
@@ -770,7 +800,7 @@ function finalSections(T) {
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { BYE, SYSTEMS, HAS_FINALS, newTournament, addEntry, composeEntry, start, next, status, setScore, standings, finalSections, playable, played, pending, real, phaseMatches, validate, winner, loser, activeIds, maxStage, finalsPlan, koPlan, cadrageOpen, cadrageOpenIn, isCadrage, playedCount, propagate, assignCourts, entry, nrOf, stats, koRanking, qPlan, qPool, qRes, qInfo, qPoolOf, qFold, qkoList, drawQCad, drawQKo, qLate, qLateSlot, qStatus, qFinal };
+if (typeof module !== 'undefined') module.exports = { qForfeit, qReactivate, entry, BYE, SYSTEMS, HAS_FINALS, newTournament, addEntry, composeEntry, start, next, status, setScore, standings, finalSections, playable, played, pending, real, phaseMatches, validate, winner, loser, activeIds, maxStage, finalsPlan, koPlan, cadrageOpen, cadrageOpenIn, isCadrage, playedCount, propagate, assignCourts, entry, nrOf, stats, koRanking, qPlan, qPool, qRes, qInfo, qPoolOf, qFold, qkoList, drawQCad, drawQKo, qLate, qLateSlot, qStatus, qFinal };
 
 /* ===================== Oberfläche ===================== */
 const LS_KEY = 'petanque-turnierleitung-v1';
@@ -901,7 +931,7 @@ function render() {
 }
 
 function vTurnier(T) {
-  const o = T.opts, S = SYSTEMS[T.system], dis = T.started ? 'disabled' : '', n = activeIds(T).length;
+  const o = T.opts, S = SYSTEMS[T.system], dis = T.started ? 'disabled' : '', n = T.system === 'quali' && T.started ? T.entries.length : activeIds(T).length;
   const disF = T.phases.some(p => p.stage === 2) ? 'disabled' : '';
   const hasTeams = T.entries.some(e => membersOf(e).length > 1); // 2er- oder 3er-Teams gemeldet // K.O.-Einteilung bleibt bis zur Auslosung der K.O.-Runde änderbar
   const fld = (label, key, type, extra) => `<label class="f">${label}<input type="${type}" data-f="${key}" value="${esc(T[key])}" ${extra || ''}></label>`;
@@ -960,7 +990,7 @@ function membersOf(e) {
 function vTeilnehmer(T) {
   const ql = T.system === 'quali', late = ql && T.started && qLateSlot(T);
   const mel = isMelee(T), canAdd = !T.started || mel || !!late, e = UI.editId ? entry(T, UI.editId) : null, k = teamSize(T), mem = e ? membersOf(e) : [];
-  const canToggle = T.started && T.phases.some(p => p.type === 'swiss' || p.type === 'melee');
+  const canToggle = T.started && (ql || T.phases.some(p => p.type === 'swiss' || p.type === 'melee'));
   const row = i => { const m = mem[i] || {}; return `<div class="prow ${k === 1 ? 'one' : ''}" data-row="${i}"><div class="sugg" id="sugg-${i}" hidden></div>${k > 1 ? `<span class="pno">Spieler ${i + 1}</span>` : ''}
       <label class="f">Vorname<input type="text" class="e-inp" id="e-first-${i}" value="${esc(m.first || '')}" autocomplete="off"></label>
       <label class="f">Name<input type="text" class="e-inp" id="e-last-${i}" value="${esc(m.last || '')}" autocomplete="off"></label>
@@ -975,7 +1005,7 @@ function vTeilnehmer(T) {
   return `${form}
   <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${T.entries.length ? '<button class="btn sm" data-act="print" data-doc="meldeliste" title="Meldeliste drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="meldeliste" title="Meldeliste als Bilddatei herunterladen">Als Bild (JPEG)</button>' : ''}${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
     ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">${ql ? 'Setzpl.' : 'Nr.'}</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
-    ${canToggle ? '<p class="note">Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.</p>' : ''}${ql && !T.started && T.entries.length ? `<p class="note">Setzplatz = Reihenfolge der Meldeliste. Bitte die Setzliste des Verbands 1:1 in dieser Reihenfolge eintragen oder importieren, mit ▲ ▼ lässt sich ein Team verschieben. Die ersten ${qPlan(activeIds(T).length, T.opts.places).F} werden als Pouleköpfe gesetzt, der Rest wird zugelost.</p>` : ''}${!ql && !mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
+    ${canToggle ? `<p class="note">${ql ? 'Ein abgemeldetes Team verliert sein offenes Spiel und alle weiteren Spiele kampflos 13:0. Der Gegner kommt weiter.' : 'Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.'}</p>` : ''}${ql && !T.started && T.entries.length ? `<p class="note">Setzplatz = Reihenfolge der Meldeliste. Bitte die Setzliste des Verbands 1:1 in dieser Reihenfolge eintragen oder importieren, mit ▲ ▼ lässt sich ein Team verschieben. Die ersten ${qPlan(activeIds(T).length, T.opts.places).F} werden als Pouleköpfe gesetzt, der Rest wird zugelost.</p>` : ''}${!ql && !mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
   </section>
   ${canAdd && !late ? `<section class="card"><h2>Meldeliste importieren</h2>
     <p class="muted">Die Einschreibungsliste des Verbands (.xlsx oder .xls) lässt sich direkt laden. Übernommen werden je Spieler Name, Vorname und Verein (Spalten <code>${imp}</code>). Alle anderen Spalten wie Teamnummer, Lizenznummer oder Spieler-ID werden ignoriert, die Teamnummern vergibt das Programm.${T.system === 'quali' ? ' Steht in der Liste eine Setzposition, wird die Meldeliste danach sortiert.' : ''} Für eigene Listen gibt es die Excel-Vorlage im selben Aufbau.</p>
@@ -991,8 +1021,8 @@ function matchRow(T, ph, m, locked) {
     const t = m.pa ? sideText(T, m, 'a') : m.auto ? ename(T, m.auto) : sideText(T, m, m.a === BYE ? 'b' : 'a');
     return `<div class="match done"><div class="m-court none">${ph.cadrage && m.round === 1 ? 'ohne Cadrage' : 'Freilos'}</div><div class="m-a win">${esc(t)}</div><div class="m-sc muted">${m.bye ? `${m.sa} : ${m.sb}` : 'weiter'}</div><div class="m-b muted">–</div>${no}</div>`;
   }
-  const known = !!m.pa || (real(m.a) && real(m.b)), can = known && !m.hold, pl = played(m), d = (!can || locked) ? 'disabled' : '';
-  const court = m.court ? `<div class="m-court">Bahn ${m.court}</div>` : `<div class="m-court none">${pl ? '' : can ? 'wartet auf Bahn' : m.hold ? 'nach der Cadrage' : 'offen'}</div>`;
+  const known = !!m.pa || (real(m.a) && real(m.b)), can = known && !m.hold, pl = played(m), d = (!can || locked || m.wo) ? 'disabled' : '';
+  const court = m.wo ? `<div class="m-court none">kampflos</div>` : m.court ? `<div class="m-court">Bahn ${m.court}</div>` : `<div class="m-court none">${pl ? '' : can ? 'wartet auf Bahn' : m.hold ? 'nach der Cadrage' : 'offen'}</div>`;
   const inp = (v, s) => `<input class="sc" type="number" inputmode="numeric" min="0" max="99" value="${v == null ? '' : v}" ${d} aria-label="Punkte ${s}">`;
   return `<div class="match ${pl ? 'done' : can ? '' : 'wait'}" data-mid="${m.id}">${court}
     <div class="m-a ${pl && m.sa > m.sb ? 'win' : ''}">${sideHtml(T, m, 'a')}</div>
@@ -1601,7 +1631,14 @@ const ACT = {
   'entry-edit': el => { UI.editId = el.dataset.id; render(); window.scrollTo(0, 0); const f = $('#e-first-0'); if (f) f.focus(); },
   'entry-del': el => { const T = cur(); T.entries = T.entries.filter(e => e.id !== el.dataset.id); T.entries.sort((a, b) => a.nr - b.nr).forEach((e, i) => { e.nr = i + 1; }); save(); render(); },
   'entry-clear': () => { const T = cur(); ask(`Wirklich alle ${T.entries.length} ${who(T, true)} aus der Meldeliste löschen? Das lässt sich nicht rückgängig machen.`, () => { T.entries = []; UI.editId = null; save(); render(); toast('Meldeliste geleert.'); }, 'Alle löschen'); },
-  'entry-toggle': el => { const e = entry(cur(), el.dataset.id); e.active = e.active === false; save(); render(); },
+  'entry-toggle': el => {
+    const T = cur(), e = entry(T, el.dataset.id);
+    if (T.system === 'quali') {
+      if (e.active === false) { const r = qReactivate(T, e.id); if (r) { toast(r); render(); return; } save(); render(); return; }
+      return ask(`${e.name} abmelden? Das Team verliert sein offenes Spiel und alle weiteren Spiele kampflos 13:0, der Gegner kommt weiter.`, () => { e.active = false; propagate(T); assignCourts(T); autoPhase(T); save(); render(); }, 'Abmelden');
+    }
+    e.active = e.active === false; save(); render();
+  },
   'imp-tpl': () => { const T = cur(); download('Meldeliste_Vorlage_' + (isMelee(T) ? 'Supermelee' : { tete: 'Tete-a-tete', doublette: 'Doublette', triplette: 'Triplette' }[T.formation]) + '.xlsx', xlsxFile([importHead(T)], 'Meldeliste'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); },
   demo: () => {
     const T = cur(), n = Math.max(1, Math.min(128, +$('#demo-n').value || 0)), k = teamSize(T);
