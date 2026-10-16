@@ -590,11 +590,12 @@ function qStatus(T) {
   if (p.round < p.nRounds) return { state: 'next', action: 'qko', label: `K.O.-Runde ${p.round} ist fertig.`, btn: `K.O.-Runde ${p.round + 1} auslosen` };
   return { state: 'done', label: 'Quali abgeschlossen – die Quali-Plätze stehen fest.' };
 }
-// Ergebnisliste: Qualifizierte, Nachrücker (Verlierer der letzten Runde), dann die übrigen Ausgeschiedenen
+// Ergebnisliste: Qualifizierte (nach Hilfsliste), Nachrücker (Verlierer der letzten Runde, nach Setzliste), dann die übrigen Ausgeschiedenen
 function qFinal(T) {
   const pp = qPhase(T), cp = qPhase(T, 'qcad'), kp = qPhase(T, 'qko'), pl = pp.plan, info = qInfo(T, pp), poolOf = qPoolOf(pp), out = [];
   const lab = id => { const i = info.get(id); return i ? `Poule ${i.pool}, ${i.place === 1 ? 'Erster' : 'Zweiter'}` : poolOf(id) ? `Poule ${poolOf(id)}` : ''; };
   const sortBy = (ids, L) => ids.slice().sort((a, b) => { const x = L.indexOf(a), y = L.indexOf(b); return (x < 0 ? 1e9 : x) - (y < 0 ? 1e9 : y); });
+  const bySeed = ids => ids.slice().sort((a, b) => nrOf(T, a) - nrOf(T, b)); // Nachrücker nach Setzliste, niedrigste Nummer zuerst
   const num = ids => ids.map((id, i) => ({ place: i + 1, id, info: lab(id) })), dash = ids => ids.map(id => ({ place: '–', id, info: lab(id) }));
   const done = qStatus(T).state === 'done', gone = new Set(), elim = [];
   const lost = ms => ms.map(loser).filter(real);
@@ -603,8 +604,8 @@ function qFinal(T) {
   const pout = pp.pools.flatMap(x => qRes(T, pp, x).out); if (pout.length) elim.push({ title: 'In der Poule ausgeschieden', rows: dash(pout) });
   if (done) {
     let q, nach = [];
-    if (pl.k) { const ms = phaseMatches(T, kp).filter(m => m.round === pl.k); q = sortBy(ms.map(winner).filter(real), kp.list); nach = sortBy(lost(ms), kp.list); }
-    else { q = qkoList(T); if (cp) nach = sortBy(lost(phaseMatches(T, cp)), cp.list); }
+    if (pl.k) { const ms = phaseMatches(T, kp).filter(m => m.round === pl.k); q = sortBy(ms.map(winner).filter(real), kp.list); nach = bySeed(lost(ms)); }
+    else { q = qkoList(T); if (cp) nach = bySeed(lost(phaseMatches(T, cp))); }
     out.push({ title: `Qualifiziert (${q.length})`, rows: num(q) });
     if (nach.length) out.push({ title: 'Nachrücker', rows: num(nach) });
   } else {
