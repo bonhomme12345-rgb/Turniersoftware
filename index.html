@@ -60,8 +60,6 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .btn:hover{border-color:var(--clay)}
 .btn.primary{background:var(--rust);border-color:var(--rust);color:var(--on-clay)}
 .btn.primary:hover{background:var(--clay);border-color:var(--clay)}
-#file-btn{position:relative}
-#file-btn.dirty::after{content:'';position:absolute;top:-2px;right:-2px;width:11px;height:11px;border-radius:50%;background:var(--notice-border);border:2px solid var(--paper-light)}
 .btn.danger{color:var(--danger)}
 .btn.test{border-style:dashed;color:var(--muted);font-weight:600;background:transparent}
 .btn.sm{min-height:30px;padding:0 12px;font-size:.66rem}
@@ -139,7 +137,7 @@ tr.off td{opacity:.5;text-decoration:line-through}
 #print{display:none}
 @media (max-width:640px){
   .brand img{width:52px}.brand-txt b{font-size:1.05rem}.theme-toggle .lbl{display:none}
-  .top-in{padding:10px 12px}.brand{order:0;flex:1 1 auto}#theme-btn{order:1}.top select{order:2;flex:1 1 0;max-width:none}.top-in>.btn{order:3}#file-btn{order:4}
+  .top-in{padding:10px 12px}.brand{order:0;flex:1 1 auto}#theme-btn{order:1}.top select{order:2;flex:1 1 0;max-width:none}.top-in>.btn{order:3}
   nav.tabs{border-radius:18px}
   .prow,.prow.one{grid-template-columns:1fr}.prow:not(.one) .sugg{left:0}.prow .pno{padding-bottom:0}
   .match{grid-template-columns:1fr auto 1fr;row-gap:4px}
@@ -172,7 +170,6 @@ tr.off td{opacity:.5;text-decoration:line-through}
   <div class="brand"><img class="logo-light" src="data:image/webp;base64,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" alt="Boule Team Braunfels"><img class="logo-dark" src="data:image/webp;base64,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" alt="Boule Team Braunfels"><div class="brand-txt"><b>Boule Team Braunfels</b><span>Turnierleitung</span></div></div>
   <select id="tsel" aria-label="Turnier wählen"></select>
   <button class="btn" data-act="t-new">Neues Turnier</button>
-  <button class="btn primary" id="file-btn" data-act="filesave">Speichern</button>
   <button class="theme-toggle" id="theme-btn" data-act="theme" aria-label="Dunkelmodus aktivieren"><span class="theme-toggle-track"><span class="theme-toggle-knob">●</span></span><span class="lbl">Hell</span></button>
 </div></header>
 <nav class="tabs"><div class="tabs-in">
@@ -187,7 +184,6 @@ tr.off td{opacity:.5;text-decoration:line-through}
 <div id="modal" hidden><div class="card"><p id="modal-text"></p><div class="row" style="justify-content:flex-end"><button class="btn" data-act="modal-no">Abbrechen</button><button class="btn primary" id="modal-yes" data-act="modal-yes">Ja</button></div></div></div>
 <div id="toast" hidden role="status"></div>
 <div id="print"></div>
-<script id="app-data" type="application/json">null</script>
 <script>
 'use strict';
 /* ===================== Turnier-Kern (ohne DOM) ===================== */
@@ -792,39 +788,12 @@ const FORM = { tete: 'Tête-à-tête 1:1 / SM', doublette: 'Doublette 2:2', trip
 const FORM_N = { tete: 1, doublette: 2, triplette: 3 };
 const teamSize = T => (isMelee(T) ? 1 : FORM_N[T.formation] || 2);
 
-// Unveränderter Quelltext dieser Seite (vor dem ersten Zeichnen) – Grundlage für „In Datei speichern“
-const PRISTINE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 function loadDB() {
-  let local = null, emb = null;
-  try { const s = localStorage.getItem(LS_KEY); if (s) { const d = JSON.parse(s); if (d && Array.isArray(d.tournaments)) local = d; } localStorage.setItem(LS_KEY + '-probe', '1'); }
+  try { const s = localStorage.getItem(LS_KEY); if (s) { const d = JSON.parse(s); if (d && Array.isArray(d.tournaments)) DB = d; } localStorage.setItem(LS_KEY + '-probe', '1'); }
   catch (e) { UI.storageOk = false; }
-  try { const el = document.getElementById('app-data'), d = el && JSON.parse(el.textContent); if (d && Array.isArray(d.tournaments)) emb = d; } catch (e) { /* keine eingebetteten Daten */ }
-  // In die Datei gespeicherte Daten werden genommen, wenn dieser Browser nichts Neueres hat
-  if (emb && (!local || (emb.savedAt || 0) > (local.savedAt || 0))) { DB = emb; UI.fromFile = true; } else if (local) DB = local;
   migrate();
   if (!DB.tournaments.length) { const t = newTournament(); DB.tournaments.push(t); DB.current = t.id; }
   if (!DB.tournaments.some(t => t.id === DB.current)) DB.current = DB.tournaments[0].id;
-  if (UI.fromFile) { try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch (e) { /* bleibt im Speicher */ } }
-}
-let FILE_HANDLE = null;
-const fileName = () => { try { return decodeURIComponent(location.pathname.split('/').pop()) || 'Petanque-Turnierleitung.html'; } catch (e) { return 'Petanque-Turnierleitung.html'; } };
-// Als „noch nicht in der Datei“ zählt nur, was wirklich wichtig ist: neue oder geänderte Spieler in der Spielerdatenbank
-const unsaved = () => (DB.playersChangedAt || 0) > (DB.fileSavedAt || 0);
-const touchPlayers = () => { DB.playersChangedAt = Date.now(); };
-async function saveToFile() {
-  const prev = DB.fileSavedAt; DB.fileSavedAt = Date.now(); DB.savedAt = DB.fileSavedAt;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch (e) { /* nur Datei */ }
-  const data = JSON.stringify(DB).replace(/</g, '\\u003c');
-  const html = PRISTINE.replace(/(<script id="app-data" type="application\/json">)[\s\S]*?(<\/script>)/, (m, a, b) => a + data + b);
-  if (window.showSaveFilePicker) {
-    try {
-      if (!FILE_HANDLE) FILE_HANDLE = await window.showSaveFilePicker({ suggestedName: fileName(), types: [{ description: 'Turnierleitung (HTML)', accept: { 'text/html': ['.html'] } }] });
-      const w = await FILE_HANDLE.createWritable(); await w.write(html); await w.close();
-      render(); toast(`Gespeichert – alle Turniere und die Spielerdatenbank stecken jetzt in „${FILE_HANDLE.name}“.`); return;
-    } catch (e) { if (e && e.name === 'AbortError') { DB.fileSavedAt = prev; render(); return; } FILE_HANDLE = null; }
-  }
-  download(fileName(), html, 'text/html'); render();
-  toast('Die Datei mit allen Daten wurde heruntergeladen. Bitte die bisherige Datei damit ersetzen.');
 }
 // Ältere Stände: entfernte Systeme werden nicht angezeigt, bleiben aber im Speicher erhalten (DB.legacy)
 function migrate() {
@@ -844,8 +813,8 @@ function rememberPlayers(members, count, date) {
   members.forEach(m => {
     if (!m.first && !m.last) return;
     const k = pdbKey(m.first, m.last); let p = pdb().find(x => pdbKey(x.first, x.last) === k);
-    if (!p) { p = { first: (m.first || '').trim(), last: (m.last || '').trim(), club: (m.club || '').trim(), n: 0, seen: '' }; pdb().push(p); touchPlayers(); }
-    else if (m.club && m.club.trim() !== p.club) { p.club = m.club.trim(); touchPlayers(); }
+    if (!p) { p = { first: (m.first || '').trim(), last: (m.last || '').trim(), club: (m.club || '').trim(), n: 0, seen: '' }; pdb().push(p); }
+    else if (m.club && m.club.trim() !== p.club) { p.club = m.club.trim(); }
     if (count) { p.n = (p.n || 0) + 1; p.seen = date || new Date().toISOString().slice(0, 10); }
   });
 }
@@ -921,7 +890,6 @@ function ensureSel(T) { if (UI.phase === 'all' && T.phases.length > 1) return; i
 function render() {
   const T = cur();
   document.title = T.name + ' – Pétanque-Turnierleitung';
-  const fb = $('#file-btn'); if (fb) { fb.classList.toggle('dirty', unsaved()); fb.title = unsaved() ? 'Neue oder geänderte Spieler sind noch nicht in der Datei gespeichert' : 'Die Spielerdatenbank ist in der Datei gespeichert'; }
   $('#tsel').innerHTML = DB.tournaments.map(t => `<option value="${t.id}" ${t.id === T.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
   document.querySelectorAll('.tab').forEach(b => { b.classList.toggle('on', b.dataset.tab === UI.tab); if (b.dataset.tab === 'teilnehmer') b.textContent = (isMelee(T) ? 'Spieler' : 'Teams') + ` (${T.entries.length})`; });
   $('#main').innerHTML = ({ turnier: vTurnier, teilnehmer: vTeilnehmer, spiele: vSpiele, tabelle: vTabelle, baum: vBaum, daten: vDaten })[UI.tab](T);
@@ -1157,21 +1125,18 @@ function pdbRows(q) {
 function pdbRenderList() { const t = $('#pdb-list'); if (t) t.innerHTML = pdbRows(($('#pdb-q') || {}).value || ''); }
 function vDaten(T) {
   return `
-  ${UI.storageOk ? '' : '<div class="statusbar next"><div><strong>Automatisches Speichern ist in diesem Browserfenster nicht möglich.</strong><span>Bitte das Turnier regelmäßig über „Turnier als Datei sichern“ exportieren.</span></div></div>'}
-  <section class="card"><h2>In der Datei speichern</h2>
-    <p class="muted">Schreibt alle Turniere und die Spielerdatenbank direkt in diese HTML-Datei. So sind die Daten auch auf einem anderen Gerät oder nach dem Löschen des Browserspeichers wieder da – einfach die Datei öffnen. ${window.showSaveFilePicker ? 'Beim ersten Speichern fragt der Browser, wohin: bitte diese Datei auswählen und überschreiben. Danach speichert der Knopf ohne Nachfrage.' : 'Dieser Browser lädt dafür eine neue Datei herunter; bitte die bisherige Datei damit ersetzen. (Chrome und Edge können die Datei direkt überschreiben.)'}</p>
-    <div class="row"><button class="btn primary" data-act="filesave">In Datei speichern</button><span class="muted">${DB.fileSavedAt ? 'Zuletzt gespeichert: ' + new Date(DB.fileSavedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) + (unsaved() ? ' · <strong style="color:var(--danger)">seitdem neue oder geänderte Spieler</strong>' : ' · Spielerdatenbank aktuell') : 'Noch nicht in der Datei gespeichert.'}</span></div></section>
+  ${UI.storageOk ? '' : '<div class="statusbar next"><div><strong>Automatisches Speichern ist in diesem Browserfenster nicht möglich.</strong><span>Turniere und Spieler gehen beim Schließen verloren. Die Spielerdatenbank bitte unten über „Als Datei sichern“ sichern.</span></div></div>'}
+  <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
+    <p class="muted">Jeder gemeldete Spieler wird hier gespeichert. Beim nächsten Turnier erscheint er schon beim Eintippen von Vor- oder Nachname als Vorschlag – Auswahl mit Klick, Pfeiltasten und Enter. Die Daten bleiben nur auf diesem Gerät; zum Übertragen auf ein anderes Gerät die Datenbank als Datei sichern und dort laden.</p>
+    <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><button class="btn" data-act="pdb-exp">Als Datei sichern</button><label class="btn">Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-csv">Als CSV</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
+    ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th class="n">Turniere</th><th>Zuletzt</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
+  </section>
   <section class="card"><h2>Drucken</h2><p class="muted">Erzeugt eine Druckansicht (auch „Als PDF speichern“). Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde.</p>
     <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel</button>` : ''}</div></section>
   <section class="card"><h2>Als Bild herunterladen (JPEG)</h2><p class="muted">Speichert die Ansicht als Bilddatei, z. B. zum Verschicken oder für einen Bildschirm am Platz. Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde, die Tabelle auf die im Reiter „Tabelle“ gewählte Phase, der Turnierbaum auf das im Reiter „Turnierbaum“ gewählte Turnier.</p>
     <div class="row"><button class="btn" data-act="jpg" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen</button><button class="btn" data-act="jpg" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button>` : ''}${T.phases.some(p => p.type === 'ko') ? '<button class="btn" data-act="jpg" data-doc="baum">Turnierbaum</button>' : ''}</div></section>
   <section class="card"><h2>Endstand exportieren</h2><p class="muted">Erzeugt eine CSV-Datei mit dem Endstand, die sich in Excel öffnen lässt.</p>
     <div class="row"><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
-  <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
-    <p class="muted">Jeder gemeldete Spieler wird hier gespeichert. Beim nächsten Turnier erscheint er schon beim Eintippen von Vor- oder Nachname als Vorschlag – Auswahl mit Klick, Pfeiltasten und Enter. Die Daten bleiben nur auf diesem Gerät; zum Übertragen auf ein anderes Gerät die Datenbank als Datei sichern und dort laden.</p>
-    <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><button class="btn" data-act="pdb-exp">Als Datei sichern</button><label class="btn">Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-csv">Als CSV</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
-    ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th class="n">Turniere</th><th>Zuletzt</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
-  </section>
   <section class="card"><h2>Turniere auf diesem Gerät</h2>
     <div class="tblwrap"><table><tbody>${DB.tournaments.map(t => `<tr><td><strong>${esc(t.name)}</strong> <small>${esc(t.date)} · ${esc(SYSTEMS[t.system].name)} · ${t.entries.length} Meldungen</small></td><td class="n"><span class="row" style="justify-content:flex-end">${t.id === T.id ? '<span class="tag">geöffnet</span>' : `<button class="btn sm" data-act="t-open" data-id="${t.id}">Öffnen</button>`}<button class="btn sm" data-act="t-copy" data-id="${t.id}">Meldeliste kopieren</button><button class="btn sm danger" data-act="t-del" data-id="${t.id}">Löschen</button></span></td></tr>`).join('')}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="t-new">Neues Turnier</button></div></section>
@@ -1457,11 +1422,10 @@ const ACT = {
     if (T.test) run(); else ask('Zufallsergebnisse sind nur für Testläufe gedacht. Ist „' + T.name + '“ ein Testturnier? Danach wird nicht mehr nachgefragt.', () => { T.test = true; run(); }, 'Ja, Testturnier');
   },
   theme: () => { const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; applyTheme(t); try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* nur für diese Sitzung */ } },
-  'pdb-del': el => { DB.players = pdb().filter(p => pdbKey(p.first, p.last) !== el.dataset.k); touchPlayers(); save(); render(); },
-  'pdb-clear': () => ask(`Alle ${pdb().length} Spieler aus der Datenbank löschen? Die Meldelisten der Turniere bleiben unverändert.`, () => { DB.players = []; touchPlayers(); save(); render(); }, 'Alle löschen'),
+  'pdb-del': el => { DB.players = pdb().filter(p => pdbKey(p.first, p.last) !== el.dataset.k); save(); render(); },
+  'pdb-clear': () => ask(`Alle ${pdb().length} Spieler aus der Datenbank löschen? Die Meldelisten der Turniere bleiben unverändert.`, () => { DB.players = []; save(); render(); }, 'Alle löschen'),
   'pdb-exp': () => download('Spielerdatenbank.json', JSON.stringify({ app: 'petanque-spielerdatenbank', version: 1, players: pdb() }, null, 1), 'application/json'),
   'pdb-csv': () => download('Spielerdatenbank.csv', csv([['Vorname', 'Name', 'Verein', 'Turniere', 'Zuletzt']].concat(pdb().map(p => [p.first, p.last, p.club, p.n || 0, p.seen || '']))), 'text/csv;charset=utf-8'),
-  filesave: () => { saveToFile(); },
   'modal-yes': () => { $('#modal').hidden = true; const f = modalYes; modalYes = null; if (f) f(); },
   'modal-no': () => { $('#modal').hidden = true; modalYes = null; render(); },
 };
@@ -1503,8 +1467,8 @@ document.addEventListener('change', e => {
     const r = new FileReader();
     r.onload = () => { try { const d = JSON.parse(String(r.result)), list = Array.isArray(d) ? d : d.players; if (!Array.isArray(list)) throw new Error('x'); let n = 0;
       list.forEach(x => { if (!x || (typeof x.first !== 'string' && typeof x.last !== 'string')) return; const k = pdbKey(x.first, x.last), p = pdb().find(y => pdbKey(y.first, y.last) === k);
-        if (p) { p.n = Math.max(p.n || 0, +x.n || 0); if (x.club && String(x.club) !== p.club) { p.club = String(x.club); touchPlayers(); } if (x.seen && String(x.seen) > (p.seen || '')) p.seen = String(x.seen); }
-        else { pdb().push({ first: String(x.first || ''), last: String(x.last || ''), club: String(x.club || ''), n: +x.n || 0, seen: String(x.seen || '') }); n++; touchPlayers(); } });
+        if (p) { p.n = Math.max(p.n || 0, +x.n || 0); if (x.club && String(x.club) !== p.club) { p.club = String(x.club); } if (x.seen && String(x.seen) > (p.seen || '')) p.seen = String(x.seen); }
+        else { pdb().push({ first: String(x.first || ''), last: String(x.last || ''), club: String(x.club || ''), n: +x.n || 0, seen: String(x.seen || '') }); n++; } });
       save(); render(); toast(`${n} neue Spieler übernommen.`); } catch (err) { toast('Diese Datei ist keine gültige Spielerdatenbank.'); } };
     r.readAsText(el.files[0]); return;
   }
@@ -1540,7 +1504,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('e-inp')) { ACT['entry-save'](); return; }
 });
 applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
-loadDB(); selDefault(cur()); if (UI.fromFile) setTimeout(() => toast('Daten aus der Datei geladen.'), 300);
+loadDB(); selDefault(cur());
 render();
 
 </script>
