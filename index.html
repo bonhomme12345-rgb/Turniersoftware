@@ -152,6 +152,7 @@ tr.off td{opacity:.5;text-decoration:line-through}
   body{background:#fff!important;background-image:none!important}
   #print h1,#print h2{font-family:var(--display)}
   #print{display:block}
+  #print img.baum{display:block;max-width:100%;margin:0 auto;object-fit:contain}
   #print h1{font-size:16pt;margin-bottom:2mm}
   #print .sub{color:#444;margin-bottom:5mm}
   #print h2{font-size:12pt;margin:5mm 0 2mm}
@@ -1132,11 +1133,11 @@ function vDaten(T) {
     ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th class="n">Turniere</th><th>Zuletzt</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
   </section>
   <section class="card"><h2>Drucken</h2><p class="muted">Erzeugt eine Druckansicht (auch „Als PDF speichern“). Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde.</p>
-    <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel</button>` : ''}</div></section>
+    <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel</button>` : ''}<button class="btn" data-act="print" data-doc="baum">Turnierbaum</button></div></section>
   <section class="card"><h2>Als Bild herunterladen (JPEG)</h2><p class="muted">Speichert die Ansicht als Bilddatei, z. B. zum Verschicken oder für einen Bildschirm am Platz. Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde, die Tabelle auf die im Reiter „Tabelle“ gewählte Phase, der Turnierbaum auf das im Reiter „Turnierbaum“ gewählte Turnier.</p>
-    <div class="row"><button class="btn" data-act="jpg" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen</button><button class="btn" data-act="jpg" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button>` : ''}${T.phases.some(p => p.type === 'ko') ? '<button class="btn" data-act="jpg" data-doc="baum">Turnierbaum</button>' : ''}</div></section>
-  <section class="card"><h2>Endstand exportieren</h2><p class="muted">Erzeugt eine CSV-Datei mit dem Endstand, die sich in Excel öffnen lässt.</p>
-    <div class="row"><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
+    <div class="row"><button class="btn" data-act="jpg" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="jpg" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="jpg" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button>` : ''}<button class="btn" data-act="jpg" data-doc="baum">Turnierbaum</button></div></section>
+  <section class="card"><h2>Endstand exportieren</h2><p class="muted">Speichert den Endstand als PDF-Datei oder als CSV-Datei, die sich in Excel öffnen lässt.</p>
+    <div class="row"><button class="btn" data-act="exp-pdf-end" ${T.started ? '' : 'disabled'}>Endstand als PDF</button><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
   <section class="card"><h2>Turniere auf diesem Gerät</h2>
     <div class="tblwrap"><table><tbody>${DB.tournaments.map(t => `<tr><td><strong>${esc(t.name)}</strong> <small>${esc(t.date)} · ${esc(SYSTEMS[t.system].name)} · ${t.entries.length} Meldungen</small></td><td class="n"><span class="row" style="justify-content:flex-end">${t.id === T.id ? '<span class="tag">geöffnet</span>' : `<button class="btn sm" data-act="t-open" data-id="${t.id}">Öffnen</button>`}<button class="btn sm" data-act="t-copy" data-id="${t.id}">Meldeliste kopieren</button><button class="btn sm danger" data-act="t-del" data-id="${t.id}">Löschen</button></span></td></tr>`).join('')}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="t-new">Neues Turnier</button></div></section>`;
@@ -1154,7 +1155,14 @@ function selMatches(T) {
   const ph = T.phases.find(p => p.id === UI.phase), ms = phaseMatches(T, ph).filter(m => m.auto !== BYE && (UI.round === 'all' || m.round === UI.round));
   return { ph, phOf, ms, title: ph.title + (UI.round === 'all' ? '' : ' – ' + roundTitle(T, ph, UI.round)) };
 }
-function printDoc(T, doc) { $('#print').innerHTML = docHtml(T, doc); setTimeout(() => window.print(), 50); }
+function printDoc(T, doc) {
+  if (doc === 'baum') {
+    const cv = bracketCanvas(T, bracketPhase(T)), wide = cv.width > cv.height;
+    $('#print').innerHTML = `<style>@page{size:A4 ${wide ? 'landscape' : 'portrait'}}</style><img class="baum" style="max-height:${wide ? 182 : 268}mm" alt="Turnierbaum">`;
+    const img = $('#print img'); img.onload = () => setTimeout(() => window.print(), 50); img.src = cv.toDataURL('image/png'); return;
+  }
+  $('#print').innerHTML = docHtml(T, doc); setTimeout(() => window.print(), 50);
+}
 function docHtml(T, doc) {
   let h = '';
   if (doc === 'tabelle' && UI.tphase === 'final') doc = 'endstand';
@@ -1197,7 +1205,7 @@ function htmlBlocks(html) {
   } };
   walk(root); return out;
 }
-function jpegFromHtml(html, name) {
+function canvasFromHtml(html) {
   const F = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', PAD = 32, CP = 10, MAXC = 380;
   const cv = document.createElement('canvas'); let cx = cv.getContext('2d');
   const font = (sz, w) => `${w || 400} ${sz}px ${F}`, mw = (t, f) => { cx.font = f; return cx.measureText(t).width; };
@@ -1210,6 +1218,7 @@ function jpegFromHtml(html, name) {
   });
   const W = Math.max(720, ...blocks.filter(b => b.w).map(b => b.w.reduce((a, x) => a + x, 0))) + 2 * PAD, inner = W - 2 * PAD;
   const stamp = 'Pétanque-Turnierleitung · Stand ' + new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+  const breaks = []; // mögliche Seitenumbrüche (nach jeder Zeile) für die PDF-Datei
   const pass = draw => {
     let y = PAD;
     const text = (t, f, col, x, yy, align) => { if (!draw) return; cx.font = f; cx.fillStyle = col; cx.textAlign = align || 'left'; cx.textBaseline = 'middle'; cx.fillText(t, x, yy); };
@@ -1231,7 +1240,7 @@ function jpegFromHtml(html, name) {
             if (sub) text(sub, sf, '#777', x0 + m + 8, y + h / 2 + 1);
             x += w;
           });
-          y += h;
+          y += h; if (draw) breaks.push(y);
         });
         y += 10;
       }
@@ -1241,18 +1250,50 @@ function jpegFromHtml(html, name) {
   const H = pass(false), sc = Math.max(1, Math.min(2, Math.floor(30000 / H)));
   cv.width = W * sc; cv.height = H * sc; cx = cv.getContext('2d'); cx.scale(sc, sc);
   cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); pass(true);
-  cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
+  return { cv, breaks: breaks.map(y => y * sc) };
+}
+const saveCanvas = (cv, name) => cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
+const jpegFromHtml = (html, name) => saveCanvas(canvasFromHtml(html).cv, name);
+// PDF-Datei (A4 hoch) aus dem Bild: lange Listen werden zwischen zwei Zeilen auf mehrere Seiten verteilt
+function pdfFromCanvas(cv, breaks, name) {
+  const PW = 595.28, PH = 841.89, M = 28, k = (PW - 2 * M) / cv.width, maxH = Math.floor((PH - 2 * M) / k), cuts = [0];
+  while (cv.height - cuts[cuts.length - 1] > maxH) { const last = cuts[cuts.length - 1]; cuts.push(breaks.filter(b => b > last + maxH / 3 && b <= last + maxH).pop() || last + maxH); }
+  cuts.push(cv.height);
+  const parts = [], xref = []; let off = 0;
+  const add = x => { const b = typeof x === 'string' ? new TextEncoder().encode(x) : x; parts.push(b); off += b.length; };
+  const obj = (n, ...body) => { xref[n] = off; add(n + ' 0 obj\n'); body.forEach(add); add('\nendobj\n'); };
+  const pages = cuts.slice(1).map((c, i) => [cuts[i], c - cuts[i]]);
+  add('%PDF-1.4\n'); add(new Uint8Array([37, 226, 227, 207, 211, 10]));
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, `<< /Type /Pages /Count ${pages.length} /Kids [${pages.map((_, i) => 3 + 3 * i + ' 0 R').join(' ')}] >>`);
+  pages.forEach(([y0, h], i) => {
+    const pc = document.createElement('canvas'); pc.width = cv.width; pc.height = h; const c = pc.getContext('2d');
+    c.fillStyle = '#fff'; c.fillRect(0, 0, pc.width, h); c.drawImage(cv, 0, y0, cv.width, h, 0, 0, cv.width, h);
+    const bin = atob(pc.toDataURL('image/jpeg', 0.92).split(',')[1]), img = new Uint8Array(bin.length); for (let j = 0; j < bin.length; j++) img[j] = bin.charCodeAt(j);
+    const n = 3 + 3 * i, w = (PW - 2 * M).toFixed(2), hh = (h * k).toFixed(2), cs = `q ${w} 0 0 ${hh} ${M} ${(PH - M - h * k).toFixed(2)} cm /Im0 Do Q`;
+    obj(n, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 ${n + 2} 0 R >> >> /Contents ${n + 1} 0 R >>`);
+    obj(n + 1, `<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
+    obj(n + 2, `<< /Type /XObject /Subtype /Image /Width ${pc.width} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.length} >>\nstream\n`, img, '\nendstream');
+  });
+  const N = 3 + 3 * pages.length, xo = off;
+  add(`xref\n0 ${N}\n0000000000 65535 f \n` + xref.slice(1).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('') + `trailer\n<< /Size ${N} /Root 1 0 R >>\nstartxref\n${xo}\n%%EOF\n`);
+  download(name, new Blob(parts, { type: 'application/pdf' }), 'application/pdf');
+}
+function savePdf(T, doc) {
+  const html = docHtml(T, doc);
+  if (!htmlBlocks(html).some(b => b.kind === 'table' && b.rows.length > 1)) return toast('Für diese Auswahl gibt es noch nichts anzuzeigen.');
+  const { cv, breaks } = canvasFromHtml(html); pdfFromCanvas(cv, breaks, fname(T, (JPG_NAME[doc] || '_' + doc) + '.pdf'));
 }
 // Turnierbaum als Bild: eine Spalte je Runde, jedes Spiel als Kasten, Linien zum Folgespiel
-function jpegBracket(T, ph, name) {
+function bracketCanvas(T, ph) {
   const F = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', font = (sz, w) => `${w || 400} ${sz}px ${F}`;
   const PAD = 32, CW = 260, GAP = 46, BH = 66, VS = 14, TOP = 132, CAP = 19, LH = (BH - CAP) / 2;
-  const ms = phaseMatches(T, ph), R = ph.koRounds, rounds = [], third = ms.find(m => m.third);
+  const ms = ph ? phaseMatches(T, ph) : [], R = ph ? ph.koRounds : 0, rounds = [], third = ms.find(m => m.third);
   for (let r = 1; r <= R; r++) rounds.push(ms.filter(m => m.round === r && !m.third).sort((a, b) => a.pos - b.pos));
   const cy = rounds.map(() => []), colX = r => PAD + r * (CW + GAP), ghost = m => m.auto === BYE;
-  rounds[0].forEach((m, i) => { cy[0][i] = TOP + i * (BH + VS) + BH / 2; });
+  (rounds[0] || []).forEach((m, i) => { cy[0][i] = TOP + i * (BH + VS) + BH / 2; });
   for (let r = 1; r < R; r++) rounds[r].forEach((m, j) => { const a = cy[r - 1][2 * j], b = cy[r - 1][2 * j + 1]; cy[r][j] = b == null ? a : (a + b) / 2; });
-  const treeBottom = TOP + rounds[0].length * (BH + VS), W = Math.max(720, PAD * 2 + R * CW + (R - 1) * GAP), H = treeBottom + (third ? BH + 64 : 0) + 44 + PAD;
+  const treeBottom = TOP + (ph ? rounds[0].length * (BH + VS) : 20), W = Math.max(720, PAD * 2 + R * CW + (R - 1) * GAP), H = treeBottom + (third ? BH + 64 : 0) + 44 + PAD;
   const sc = Math.max(1, Math.min(2, Math.floor(30000 / H))), cv = document.createElement('canvas'); cv.width = W * sc; cv.height = H * sc;
   const cx = cv.getContext('2d'); cx.scale(sc, sc); cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);
   const mw = (t, f) => { cx.font = f; return cx.measureText(t).width; };
@@ -1260,7 +1301,8 @@ function jpegBracket(T, ph, name) {
   const text = (t, f, col, x, y, align) => { cx.font = f; cx.fillStyle = col; cx.textAlign = align || 'left'; cx.textBaseline = 'middle'; cx.fillText(t, x, y); };
   const rrect = (x, y, w, h, rad) => { cx.beginPath(); cx.moveTo(x + rad, y); cx.arcTo(x + w, y, x + w, y + h, rad); cx.arcTo(x + w, y + h, x, y + h, rad); cx.arcTo(x, y + h, x, y, rad); cx.arcTo(x, y, x + w, y, rad); cx.closePath(); };
   text(T.name, font(26, 700), '#1d1b18', PAD, PAD + 16);
-  text([T.date ? T.date.split('-').reverse().join('.') : '', T.place, SYSTEMS[T.system].name, FORM[T.formation] || ''].filter(Boolean).join(' · ') + ' – Turnierbaum ' + ph.title, font(14), '#555', PAD, PAD + 50);
+  text([T.date ? T.date.split('-').reverse().join('.') : '', T.place, SYSTEMS[T.system].name, FORM[T.formation] || ''].filter(Boolean).join(' · ') + ' – Turnierbaum' + (ph ? ' ' + ph.title : ''), font(14), '#555', PAD, PAD + 50);
+  if (!ph) text(T.system === 'quali' ? 'Im Quali-Modus gibt es keinen Turnierbaum.' : 'Noch kein Turnierbaum vorhanden.', 'italic ' + font(15), '#999', PAD, TOP);
   rounds.forEach((_, r) => text(roundTitle(T, ph, r + 1).toUpperCase(), font(12, 700), '#7a3b1e', colX(r) + CW / 2, TOP - 22, 'center'));
   cx.strokeStyle = '#c9bfb0'; cx.lineWidth = 1.5;
   for (let r = 1; r < R; r++) rounds[r].forEach((m, j) => [rounds[r - 1][2 * j], rounds[r - 1][2 * j + 1]].forEach((c, k) => {
@@ -1286,14 +1328,15 @@ function jpegBracket(T, ph, name) {
   rounds.forEach((list, r) => list.forEach((m, j) => box(m, colX(r), cy[r][j])));
   if (third) { text('Spiel um Platz 3', font(16, 700), '#7a3b1e', colX(R - 1), treeBottom + 12); box(third, colX(R - 1), treeBottom + 34 + BH / 2); }
   text('Pétanque-Turnierleitung · Stand ' + new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }), font(12), '#888', PAD, H - PAD - 6);
-  cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
+  return cv;
 }
-const JPG_NAME = { paarungen: '_Paarungen', tabelle: '_Tabelle', endstand: '_Endstand', turnierplan: '_Turnierplan' };
+const bracketPhases = T => (T.system === 'quali' ? [] : T.phases.filter(p => p.type === 'ko'));
+const bracketPhase = T => { const br = bracketPhases(T); return br.find(p => p.id === UI.bphase) || br[0] || null; };
+const JPG_NAME = { meldeliste: '_Meldeliste', paarungen: '_Paarungen', tabelle: '_Tabelle', endstand: '_Endstand', turnierplan: '_Turnierplan' };
 function saveJpeg(T, doc) {
   if (doc === 'baum') {
-    const br = T.phases.filter(p => p.type === 'ko'), ph = br.find(p => p.id === UI.bphase) || br[0];
-    if (!ph) return toast('Es gibt noch keinen Turnierbaum.');
-    return jpegBracket(T, ph, fname(T, '_Turnierbaum' + (br.length > 1 ? '_' + ph.title : '') + '.jpg'));
+    const ph = bracketPhase(T);
+    return saveCanvas(bracketCanvas(T, ph), fname(T, '_Turnierbaum' + (ph && bracketPhases(T).length > 1 ? '_' + ph.title : '') + '.jpg'));
   }
   const d = doc === 'tabelle' && UI.tphase === 'final' ? 'endstand' : doc, html = docHtml(T, d);
   if (!htmlBlocks(html).some(b => b.kind === 'table' && b.rows.length > 1)) return toast('Für diese Auswahl gibt es noch nichts anzuzeigen.');
@@ -1404,6 +1447,7 @@ const ACT = {
   },
   print: el => printDoc(cur(), el.dataset.doc),
   jpg: el => saveJpeg(cur(), el.dataset.doc),
+  'exp-pdf-end': () => savePdf(cur(), 'endstand'),
   'exp-csv-end': () => { const T = cur(); download(fname(T, '_Endstand.csv'), csvEnd(T), 'text/csv;charset=utf-8'); },
   't-new': () => { const t = newTournament(); DB.tournaments.push(t); DB.current = t.id; UI.undo = []; UI.tab = 'turnier'; selDefault(t); save(); render(); },
   't-open': el => { DB.current = el.dataset.id; UI.undo = []; selDefault(cur()); save(); render(); },
