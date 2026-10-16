@@ -14,7 +14,7 @@ function createWindow() {
     webPreferences: { contextIsolation: true, sandbox: true }
   });
   win.loadFile(path.join(__dirname, 'app', 'index.html'));
-  // Externe Links (z. B. WhatsApp) im normalen Browser öffnen, nicht im Programmfenster
+  // Externe Links im normalen Browser öffnen, nicht im Programmfenster
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (/^https?:/.test(url)) { e.preventDefault(); shell.openExternal(url); } });
 }

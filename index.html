@@ -135,11 +135,6 @@ tr.off td{opacity:.5;text-decoration:line-through}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:999px;font-weight:600;z-index:90;max-width:90vw;box-shadow:0 6px 24px rgba(0,0,0,.25)}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}
 #modal .card{max-width:440px;width:100%;margin:0}
-#share{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}
-#share .card{max-width:620px;width:100%;margin:0;max-height:92vh;overflow:auto}
-#share textarea{font-size:.9rem;line-height:1.5;min-height:260px;resize:vertical}
-.btn.wa{border-color:#25d366;color:var(--ink)}
-.btn.wa::before{content:'';width:9px;height:9px;border-radius:50%;background:#25d366;margin-right:8px;flex:0 0 auto}
 [hidden]{display:none!important}
 #print{display:none}
 @media (max-width:640px){
@@ -155,7 +150,7 @@ tr.off td{opacity:.5;text-decoration:line-through}
 @media print{
   @page{margin:12mm}
   body{background:#fff;color:#000;font-size:11pt}
-  header.top,nav.tabs,main,#toast,#modal,#share{display:none!important}
+  header.top,nav.tabs,main,#toast,#modal{display:none!important}
   body{background:#fff!important;background-image:none!important}
   #print h1,#print h2{font-family:var(--display)}
   #print{display:block}
@@ -190,8 +185,6 @@ tr.off td{opacity:.5;text-decoration:line-through}
 </div></nav>
 <main id="main"></main>
 <div id="modal" hidden><div class="card"><p id="modal-text"></p><div class="row" style="justify-content:flex-end"><button class="btn" data-act="modal-no">Abbrechen</button><button class="btn primary" id="modal-yes" data-act="modal-yes">Ja</button></div></div></div>
-<div id="share" hidden><div class="card"><h2 id="share-title">Für WhatsApp</h2><p class="muted">Text prüfen oder anpassen, dann teilen. In WhatsApp die Turniergruppe auswählen.</p><textarea id="share-text" rows="14" spellcheck="false"></textarea>
-<div class="row" style="margin-top:12px"><button class="btn primary" id="share-native" data-act="share-native">Teilen …</button><button class="btn primary" data-act="share-wa">In WhatsApp öffnen</button><button class="btn" data-act="share-copy">Text kopieren</button><button class="btn" data-act="share-close" style="margin-left:auto">Schließen</button></div></div></div>
 <div id="toast" hidden role="status"></div>
 <div id="print"></div>
 <script id="app-data" type="application/json">null</script>
@@ -1006,7 +999,7 @@ function vTeilnehmer(T) {
     <td class="n"><span class="row" style="justify-content:flex-end">${ql && !T.started ? `<button class="btn sm" data-act="entry-up" data-id="${x.id}" title="Setzplatz nach oben" aria-label="Setzplatz nach oben">▲</button><button class="btn sm" data-act="entry-down" data-id="${x.id}" title="Setzplatz nach unten" aria-label="Setzplatz nach unten">▼</button>` : ''}<button class="btn sm" data-act="entry-edit" data-id="${x.id}">Bearbeiten</button>${canToggle ? `<button class="btn sm" data-act="entry-toggle" data-id="${x.id}">${x.active === false ? 'Wieder anmelden' : 'Abmelden'}</button>` : ''}${!T.started ? `<button class="btn sm danger" data-act="entry-del" data-id="${x.id}">Löschen</button>` : ''}</span></td></tr>`).join('');
   const one = k === 1, imp = Array.from({ length: k }, (_, i) => (one ? 'Vorname; Name; Verein' : `Vorname ${i + 1}; Name ${i + 1}; Verein ${i + 1}`)).join('; ');
   return `${form}
-  <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${T.entries.length ? '<button class="btn wa sm" data-act="wa-list">WhatsApp: Meldeliste</button>' : ''}${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
+  <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
     ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">${ql ? 'Setzpl.' : 'Nr.'}</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th>${k > 1 ? '<th>Spieler</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
     ${canToggle ? '<p class="note">Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.</p>' : ''}${ql && !T.started && T.entries.length ? `<p class="note">Setzplatz = Reihenfolge der Meldeliste. Bitte die Setzliste des Verbands 1:1 in dieser Reihenfolge eintragen oder importieren, mit ▲ ▼ lässt sich ein Team verschieben. Die ersten ${qPlan(activeIds(T).length, T.opts.places).F} werden als Pouleköpfe gesetzt, der Rest wird zugelost.</p>` : ''}${!ql && !mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
   </section>
@@ -1054,10 +1047,7 @@ function vSpiele(T) {
     ${st.state === 'done' && st.extra ? '<button class="btn" data-act="next">Zusatzrunde auslosen</button>' : ''}
     ${st.state === 'done' ? '<button class="btn primary" data-act="tab" data-tab="tabelle">Endstand ansehen</button>' : ''}
     ${UI.undo.length ? '<button class="btn" data-act="undo">Letzte Auslosung zurücknehmen</button>' : ''}
-    <button class="btn wa" data-act="wa-pair" title="Paarungen der gewählten Auswahl als WhatsApp-Nachricht">WhatsApp: Paarungen</button>
     <button class="btn" data-act="jpg" data-doc="paarungen" title="Paarungen der gewählten Auswahl als Bilddatei herunterladen">Paarungen als Bild</button>
-    <button class="btn wa" data-act="wa-list" title="Meldeliste mit Startnummern als WhatsApp-Nachricht">WhatsApp: Meldeliste</button>
-    ${tablePhase(T) && waRanking(T) ? '<button class="btn wa" data-act="wa-top" title="Komplette Rangliste für WhatsApp">WhatsApp: Rangliste</button>' : ''}
     ${st.state === 'play' ? '<button class="btn test" data-act="rnd" title="Trägt in alle offenen Spiele mit feststehenden Gegnern ein Zufallsergebnis ein">Test: alle Ergebnisse eintragen</button>' : ''}</div></div>`;
   const pp = T.phases.length > 1 ? `<div class="pills"><button class="pill ${all ? 'on' : ''}" data-act="phase" data-id="all">Alle</button>${T.phases.map(p => `<button class="pill ${!all && p.id === ph.id ? 'on' : ''}" data-act="phase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}</div>` : '';
   const rp = keys.length > 1 ? `<div class="pills"><button class="pill ${UI.round === 'all' ? 'on' : ''}" data-act="round" data-r="all">Alle</button>${keys.map(k => `<button class="pill ${UI.round === k.key ? 'on' : ''}" data-act="round" data-r="${k.key}">${esc(k.label)}</button>`).join('')}</div>` : '';
@@ -1092,7 +1082,7 @@ function phaseTable(T, ph) {
   if (ph.type === 'poule') return `<section class="card"><h2>Turnierplan – Poules</h2>${qPlanTable(T, ph)}<p class="note">Reihe 1 und 2 sind nach der Setzliste gesetzt (kleine Zahl = Setzplatz), Reihe 3 und 4 zugelost (höhere Setzplatz-Nummer in Reihe 4). Erster = Sieger des Siegerspiels, Zweiter = Sieger der Barrage.</p></section>`;
   if (ph.type === 'qcad') return `<section class="card"><h2>Cadrage</h2>${qCadTable(T, ph)}</section>`;
   if (ph.type === 'qko') return `<section class="card"><h2>K.O.-Runden</h2>${qKoTable(T, ph)}</section>`;
-  return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2>${waRanking(T) ? '<button class="btn wa sm" data-act="wa-top">WhatsApp: Rangliste</button>' : ''}</div>${stTable(T, ph)}${legend(ph)}</section>`;
+  return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2></div>${stTable(T, ph)}${legend(ph)}</section>`;
 }
 const qCell = (T, id) => (id === BYE ? '<span class="muted">—</span>' : id ? `<strong>${esc(ename(T, id))}</strong> <small class="muted">${nrOf(T, id)}</small>` : '');
 function qPlanTable(T, ph) {
@@ -1173,7 +1163,7 @@ function vDaten(T) {
     <div class="row"><button class="btn primary" data-act="filesave">In Datei speichern</button><span class="muted">${DB.fileSavedAt ? 'Zuletzt gespeichert: ' + new Date(DB.fileSavedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) + (unsaved() ? ' · <strong style="color:var(--danger)">seitdem neue oder geänderte Spieler</strong>' : ' · Spielerdatenbank aktuell') : 'Noch nicht in der Datei gespeichert.'}</span></div></section>
   <section class="card"><h2>Drucken</h2><p class="muted">Erzeugt eine Druckansicht (auch „Als PDF speichern“). Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde.</p>
     <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel</button>` : ''}</div></section>
-  <section class="card"><h2>Als Bild herunterladen (JPEG)</h2><p class="muted">Speichert die Ansicht als Bilddatei, z. B. zum Verschicken per WhatsApp oder für einen Bildschirm am Platz. Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde, die Tabelle auf die im Reiter „Tabelle“ gewählte Phase.</p>
+  <section class="card"><h2>Als Bild herunterladen (JPEG)</h2><p class="muted">Speichert die Ansicht als Bilddatei, z. B. zum Verschicken oder für einen Bildschirm am Platz. Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde, die Tabelle auf die im Reiter „Tabelle“ gewählte Phase.</p>
     <div class="row"><button class="btn" data-act="jpg" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen</button><button class="btn" data-act="jpg" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button>` : ''}</div></section>
   <section class="card"><h2>Endstand exportieren</h2><p class="muted">Erzeugt eine CSV-Datei mit dem Endstand, die sich in Excel öffnen lässt.</p>
     <div class="row"><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
@@ -1187,52 +1177,6 @@ function vDaten(T) {
     <div class="row" style="margin-top:12px"><button class="btn" data-act="t-new">Neues Turnier</button></div></section>
   <section class="card"><h2>Testlauf</h2><p class="muted">Trägt in alle offenen Spiele mit feststehenden Gegnern Zufallsergebnisse ein – praktisch, um ein System vorab durchzuspielen. Derselbe Knopf steht im Reiter „Spiele“ oben in der Statusleiste. Nicht im echten Turnier verwenden.</p>
     <button class="btn" data-act="rnd" ${T.started ? '' : 'disabled'}>Offene Spiele zufällig füllen</button></section>`;
-}
-
-/* ---------- Teilen per WhatsApp ---------- */
-const dDate = T => (T.date ? T.date.split('-').reverse().join('.') : '');
-const waHead = (T, title) => { const sub = [dDate(T), T.place].filter(Boolean).join(' · '); return `*${T.name} – ${title}*` + (sub ? '\n' + sub : ''); };
-// Startnummern statt Namen – passt auf schmale Handybildschirme ohne Zeilenumbruch
-const waNr = (T, m, s) => (m.pa ? (s === 'a' ? m.pa : m.pb).map(id => nrOf(T, id)).join(' / ') : String(nrOf(T, m[s])));
-// Paarungen der im Reiter „Spiele“ gewählten Auswahl (auch „Alle“: Turniere nach Stufe verschränkt)
-function waPairings(T) {
-  ensureSel(T); const all = UI.phase === 'all', ph = all ? null : T.phases.find(p => p.id === UI.phase);
-  const groups = (all ? allGroups(T) : [...new Set(phaseMatches(T, ph).map(m => m.round))].sort((a, b) => a - b).map(r => ({ p: ph, r, key: r, label: roundTitle(T, ph, r) })))
-    .filter(g => UI.round === 'all' || g.key === UI.round);
-  const blocks = groups.map(g => {
-    const lines = [];
-    phaseMatches(T, g.p).filter(m => m.round === g.r).sort((x, y) => (x.bye - y.bye) || ((x.court || 999) - (y.court || 999)) || (x.no - y.no)).forEach(m => { // nach Bahn sortiert
-      if (m.auto) return;
-      if (m.bye) { lines.push(`Freilos:  ${waNr(T, m, 'a')} (${m.sa}:${m.sb})`); return; }
-      if (!m.pa && !(real(m.a) && real(m.b))) return;
-      lines.push(`${m.court ? 'Bahn ' + m.court : played(m) ? 'Gespielt' : 'Bahn folgt'}:  ${waNr(T, m, 'a')} vs. ${waNr(T, m, 'b')}` + (played(m) ? ` (${m.sa}:${m.sb})` : ''));
-    });
-    return lines.length ? { title: (all || T.phases.length > 1 || g.p.title === 'Vorrunde' ? g.p.title + ' · ' : '') + roundTitle(T, g.p, g.r), lines } : null;
-  }).filter(Boolean);
-  if (!blocks.length) return '';
-  if (blocks.length === 1) return waHead(T, blocks[0].title) + '\n\n' + blocks[0].lines.join('\n\n') + '\n\nViel Erfolg! 🍀';
-  const sel = UI.round === 'all' ? null : groups.find(g => g.key === UI.round);
-  return waHead(T, sel ? sel.label : 'Paarungen') + '\n\n' + blocks.map(b => `*${b.title}*\n\n` + b.lines.join('\n\n')).join('\n\n\n') + '\n\nViel Erfolg! 🍀';
-}
-// Meldeliste mit Startnummern – damit jeder die Nummern aus den Paarungen zuordnen kann
-function waEntries(T) {
-  const list = T.entries.slice().sort((a, b) => a.nr - b.nr); if (!list.length) return '';
-  const act = list.filter(e => e.active !== false).length;
-  return waHead(T, 'Meldeliste') + `\n${act} ${isMelee(T) ? 'Spieler' : 'Teams'}\n\n` + list.map(e => `${e.nr}:  ${e.name}` + (e.active === false ? ' (abgemeldet)' : '')).join('\n');
-}
-// Komplette Rangliste (Schweizer System, Vorrunde Maastrichter, Supermêlée)
-const tablePhase = T => T.phases.find(p => p.type === 'swiss' || p.type === 'melee');
-function waRanking(T) {
-  const ph = tablePhase(T); if (!ph || !ph.round) return '';
-  const ms = phaseMatches(T, ph), cur = ms.filter(m => m.round === ph.round), running = cur.some(m => !played(m)), sw = ph.type === 'swiss';
-  if (running && !ms.some(m => m.round < ph.round)) return '';
-  const title = running ? `Zwischenstand (Runde ${ph.round} läuft)` : `Tabelle nach Runde ${ph.round}`;
-  return waHead(T, title + (T.phases.length > 1 ? ' · ' + ph.title : '')) + '\n\n' +
-    standings(T, ph).map(r => `${r.place}. ${ename(T, r.id)} – ${r.w} ${r.w === 1 ? 'Sieg' : 'Siege'}${sw ? ', BH ' + r.bh : ''}, ${r.diff > 0 ? '+' : ''}${r.diff}` + ((entry(T, r.id) || {}).active === false ? ' (abgemeldet)' : '')).join('\n');
-}
-function openShare(title, text) {
-  if (!text) return toast('Für diese Auswahl gibt es noch nichts zu teilen.');
-  $('#share-title').textContent = title; $('#share-text').value = text; $('#share-native').hidden = !navigator.share; $('#share').hidden = false;
 }
 
 /* ---------- Drucken ---------- */
@@ -1468,17 +1412,6 @@ const ACT = {
   'pdb-exp': () => download('Spielerdatenbank.json', JSON.stringify({ app: 'petanque-spielerdatenbank', version: 1, players: pdb() }, null, 1), 'application/json'),
   'pdb-csv': () => download('Spielerdatenbank.csv', csv([['Vorname', 'Name', 'Verein', 'Turniere', 'Zuletzt']].concat(pdb().map(p => [p.first, p.last, p.club, p.n || 0, p.seen || '']))), 'text/csv;charset=utf-8'),
   filesave: () => { saveToFile(); },
-  'wa-pair': () => openShare('Paarungen für WhatsApp', waPairings(cur())),
-  'wa-top': () => openShare('Rangliste für WhatsApp', waRanking(cur())),
-  'wa-list': () => openShare('Meldeliste für WhatsApp', waEntries(cur())),
-  'share-close': () => { $('#share').hidden = true; },
-  'share-copy': () => {
-    const ta = $('#share-text'), done = () => toast('Text kopiert – jetzt in der WhatsApp-Gruppe einfügen.');
-    const fallback = () => { ta.select(); try { document.execCommand('copy'); done(); } catch (e) { toast('Bitte den Text markieren und kopieren.'); } };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, fallback); else fallback();
-  },
-  'share-wa': () => { window.open('https://wa.me/?text=' + encodeURIComponent($('#share-text').value), '_blank', 'noopener'); },
-  'share-native': () => { navigator.share({ text: $('#share-text').value }).catch(() => {}); },
   'modal-yes': () => { $('#modal').hidden = true; const f = modalYes; modalYes = null; if (f) f(); },
   'modal-no': () => { $('#modal').hidden = true; modalYes = null; render(); },
 };
