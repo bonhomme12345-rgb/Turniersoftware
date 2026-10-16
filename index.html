@@ -116,7 +116,7 @@ tr.q td:first-child{box-shadow:inset 3px 0 0 var(--green-accent)}
 tr.off td{opacity:.5;text-decoration:line-through}
 .empty{text-align:center;padding:40px 16px;color:var(--muted)}
 .bracket{display:flex;gap:18px;overflow-x:auto;padding-bottom:8px}
-.bcol{display:flex;flex-direction:column;min-width:200px;flex:0 0 200px}
+.bcol{display:flex;flex-direction:column;min-width:300px;flex:0 0 300px}
 .bcol h4{font-family:"Public Sans","Segoe UI",sans-serif;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(--rust);margin-bottom:8px;text-align:center}
 .bcol-in{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:8px}
 .bm{border:1px solid var(--line);border-radius:12px;background:var(--paper-light);font-size:.86rem;overflow:hidden}
@@ -222,12 +222,12 @@ function newTournament(name) {
     entries: [], phases: [], matches: [], seq: 0, mno: 0, started: false,
   };
 }
-// Teamname und Vereinsangabe ergeben sich aus den gemeldeten Spielern (Vorname, Name, Verein)
+// Teamname (Vor- und Nachname aller Spieler) und Vereinsangabe ergeben sich aus den gemeldeten Spielern (Vorname, Name, Verein)
 function composeEntry(members) {
   const ms = members.map(m => ({ first: (m.first || '').trim(), last: (m.last || '').trim(), club: (m.club || '').trim() })).filter(m => m.first || m.last);
   ms.forEach(m => { if (!m.club && ms[0].club) m.club = ms[0].club; }); // leerer Verein = Verein des ersten Spielers
   const full = m => [m.first, m.last].filter(Boolean).join(' ');
-  return { members: ms, name: ms.length === 1 ? full(ms[0]) : ms.map(m => m.last || m.first).join(' / '), club: [...new Set(ms.map(m => m.club).filter(Boolean))].join(' / '), players: ms.map(full).join(', ') };
+  return { members: ms, name: ms.map(full).join(' / '), club: [...new Set(ms.map(m => m.club).filter(Boolean))].join(' / '), players: ms.map(full).join(', ') };
 }
 function addEntry(T, o) {
   const nr = T.entries.reduce((x, e) => Math.max(x, e.nr), 0) + 1;
@@ -803,6 +803,7 @@ function migrate() {
   const known = t => SYSTEMS[t.system] && !t.phases.some(p => !['swiss', 'ko', 'melee', 'cad', 'pre', 'poule', 'qcad', 'qko'].includes(p.type)) && !(t.system === 'ko' && t.phases.some(p => p.consolante));
   DB.legacy.push(...DB.tournaments.filter(t => !known(t))); DB.tournaments = DB.tournaments.filter(known);
   DB.tournaments.forEach(t => t.phases.forEach(p => { if (p.type === 'swiss') delete p.mode; }));
+  DB.tournaments.forEach(t => t.entries.forEach(e => { if (e.members && e.members.length) e.name = composeEntry(e.members).name; })); // Teamname immer mit Vor- und Nachnamen
   if (!DB.players) { DB.players = []; DB.tournaments.forEach(t => t.entries.forEach(e => { if (e.members && e.members.length && !e.demo && !/^Testverein /.test(e.club || '')) rememberPlayers(e.members, true, t.date); })); } // einmalig aus bisherigen Meldelisten aufbauen
 }
 const rankMode = ph => ph.type;
@@ -840,7 +841,9 @@ function guard(fn) { try { fn(); } catch (e) { toast(e.message || String(e)); re
 /* ---------- Namen & Beschriftungen ---------- */
 const isMelee = T => T.system === 'melee';
 const who = (T, pl) => (isMelee(T) ? 'Spieler' : pl ? 'Teams' : 'Team');
-function ename(T, id) { if (id === BYE) return 'Freilos'; const e = entry(T, id); return e ? e.name : '?'; }
+// Anzeige überall mit Teamnummer; tname ohne Nummer für Tabellen, die eine eigene Nr.-Spalte haben
+function tname(T, id) { if (id === BYE) return 'Freilos'; const e = entry(T, id); return e ? e.name : '?'; }
+function ename(T, id) { if (id === BYE) return 'Freilos'; const e = entry(T, id); return e ? e.nr + ' · ' + e.name : '?'; }
 function sideText(T, m, s) {
   if (m.pa) return (s === 'a' ? m.pa : m.pb).map(id => ename(T, id)).join(' / ') || 'Freilos';
   const id = m[s]; if (id) return ename(T, id);
@@ -965,12 +968,12 @@ function vTeilnehmer(T) {
     ${late && !e ? `<p class="note" style="margin-top:0">Einschreibung geschlossen: Ein verspätetes Team kommt in Poule ${late.no} (erster Dreierpoule) in Reihe 4 und spielt gegen Reihe 1.</p>` : ''}
     ${Array.from({ length: k }, (_, i) => row(i)).join('')}
     <div class="row" style="margin-top:12px"><button class="btn primary" data-act="entry-save">${e ? 'Speichern' : 'Hinzufügen'}</button>${e ? '<button class="btn" data-act="entry-cancel">Abbrechen</button>' : ''}</div></section>` : '';
-  const rows = T.entries.slice().sort((a, b) => a.nr - b.nr).map(x => `<tr class="${x.active === false ? 'off' : ''}"><td class="n">${x.nr}</td><td><strong>${esc(x.name)}</strong></td><td>${esc(x.club)}</td>${k > 1 ? `<td>${esc(x.players)}</td>` : ''}
-    <td class="n"><span class="row" style="justify-content:flex-end">${ql && !T.started ? `<button class="btn sm" data-act="entry-up" data-id="${x.id}" title="Setzplatz nach oben" aria-label="Setzplatz nach oben">▲</button><button class="btn sm" data-act="entry-down" data-id="${x.id}" title="Setzplatz nach unten" aria-label="Setzplatz nach unten">▼</button>` : ''}<button class="btn sm" data-act="entry-edit" data-id="${x.id}">Bearbeiten</button>${canToggle ? `<button class="btn sm" data-act="entry-toggle" data-id="${x.id}">${x.active === false ? 'Wieder anmelden' : 'Abmelden'}</button>` : ''}${!T.started ? `<button class="btn sm danger" data-act="entry-del" data-id="${x.id}">Löschen</button>` : ''}</span></td></tr>`).join('');
+  const rows = T.entries.slice().sort((a, b) => a.nr - b.nr).map(x => `<tr class="${x.active === false ? 'off' : ''}"><td class="n">${x.nr}</td><td><strong>${esc(x.name)}</strong></td><td>${esc(x.club)}</td>
+    <td class="n"><span class="row" style="justify-content:flex-end;flex-wrap:nowrap">${ql && !T.started ? `<button class="btn sm" data-act="entry-up" data-id="${x.id}" title="Setzplatz nach oben" aria-label="Setzplatz nach oben">▲</button><button class="btn sm" data-act="entry-down" data-id="${x.id}" title="Setzplatz nach unten" aria-label="Setzplatz nach unten">▼</button>` : ''}<button class="btn sm" data-act="entry-edit" data-id="${x.id}">Bearbeiten</button>${canToggle ? `<button class="btn sm" data-act="entry-toggle" data-id="${x.id}">${x.active === false ? 'Wieder anmelden' : 'Abmelden'}</button>` : ''}${!T.started ? `<button class="btn sm danger" data-act="entry-del" data-id="${x.id}">Löschen</button>` : ''}</span></td></tr>`).join('');
   const one = k === 1, imp = importHead(T).join(' | ');
   return `${form}
   <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${T.entries.length ? '<button class="btn sm" data-act="print" data-doc="meldeliste" title="Meldeliste drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="meldeliste" title="Meldeliste als Bilddatei herunterladen">Als Bild (JPEG)</button>' : ''}${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
-    ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">${ql ? 'Setzpl.' : 'Nr.'}</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th>${k > 1 ? '<th>Spieler</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
+    ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">${ql ? 'Setzpl.' : 'Nr.'}</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
     ${canToggle ? '<p class="note">Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.</p>' : ''}${ql && !T.started && T.entries.length ? `<p class="note">Setzplatz = Reihenfolge der Meldeliste. Bitte die Setzliste des Verbands 1:1 in dieser Reihenfolge eintragen oder importieren, mit ▲ ▼ lässt sich ein Team verschieben. Die ersten ${qPlan(activeIds(T).length, T.opts.places).F} werden als Pouleköpfe gesetzt, der Rest wird zugelost.</p>` : ''}${!ql && !mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
   </section>
   ${canAdd && !late ? `<section class="card"><h2>Meldeliste importieren</h2>
@@ -1035,14 +1038,14 @@ function vSpiele(T) {
 function stTable(T, ph) {
   const rows = standings(T, ph), sw = ph.type === 'swiss';
   const cols = sw ? [['S', 'w'], ['N', 'l'], ['BH', 'bh'], ['FBH', 'fbh'], ['+/−', 'diff']] : [['S', 'w'], ['N', 'l'], ['+/−', 'diff']];
-  return `<div class="tblwrap"><table><thead><tr><th class="n">Pl.</th>${sw ? '<th class="n">Nr.</th>' : ''}<th>${who(T)}</th><th class="n">Sp.</th>${cols.map(c => `<th class="n">${c[0]}</th>`).join('')}<th class="n">Punkte</th></tr></thead><tbody>${rows.map(r => {
+  return `<div class="tblwrap"><table><thead><tr><th class="n">Pl.</th><th class="n">Nr.</th><th>${who(T)}</th><th class="n">Sp.</th>${cols.map(c => `<th class="n">${c[0]}</th>`).join('')}<th class="n">Punkte</th></tr></thead><tbody>${rows.map(r => {
     const e = entry(T, r.id) || {};
-    return `<tr class="${e.active === false ? 'off' : ''}"><td class="n">${r.place}</td>${sw ? `<td class="n">${e.nr}</td>` : ''}<td><strong>${esc(e.name)}</strong>${e.club ? ` <small>${esc(e.club)}</small>` : ''}</td><td class="n">${r.g}</td>${cols.map(c => `<td class="n">${c[1] === 'diff' && r.diff > 0 ? '+' : ''}${r[c[1]]}</td>`).join('')}<td class="n">${r.pf}:${r.pa}</td></tr>`;
+    return `<tr class="${e.active === false ? 'off' : ''}"><td class="n">${r.place}</td><td class="n">${e.nr || ''}</td><td><strong>${esc(e.name)}</strong>${e.club ? ` <small>${esc(e.club)}</small>` : ''}</td><td class="n">${r.g}</td>${cols.map(c => `<td class="n">${c[1] === 'diff' && r.diff > 0 ? '+' : ''}${r[c[1]]}</td>`).join('')}<td class="n">${r.pf}:${r.pa}</td></tr>`;
   }).join('')}</tbody></table></div>`;
 }
 function rankList(T, rows) {
   if (!rows.length) return '<p class="muted">Noch keine Platzierungen.</p>';
-  return `<div class="tblwrap"><table><thead><tr><th class="n">Platz</th><th>${who(T)}</th><th>Verein</th><th></th></tr></thead><tbody>${rows.map(r => { const e = entry(T, r.id) || {}; return `<tr><td class="n">${r.place}</td><td><strong>${esc(e.name)}</strong></td><td>${esc(e.club)}</td><td class="muted">${esc(r.info || '')}</td></tr>`; }).join('')}</tbody></table></div>`;
+  return `<div class="tblwrap"><table><thead><tr><th class="n">Platz</th><th class="n">Nr.</th><th>${who(T)}</th><th>Verein</th><th></th></tr></thead><tbody>${rows.map(r => { const e = entry(T, r.id) || {}; return `<tr><td class="n">${r.place}</td><td class="n">${e.nr || ''}</td><td><strong>${esc(e.name)}</strong></td><td>${esc(e.club)}</td><td class="muted">${esc(r.info || '')}</td></tr>`; }).join('')}</tbody></table></div>`;
 }
 function phaseTable(T, ph) {
   if (ph.type === 'cad') return `<section class="card"><h2>In der Cadrage ausgeschieden</h2>${rankList(T, cadLosers(T, ph))}</section>`;
@@ -1053,7 +1056,7 @@ function phaseTable(T, ph) {
   if (ph.type === 'qko') return `<section class="card"><h2>K.O.-Runden</h2>${qKoTable(T, ph)}</section>`;
   return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2></div>${stTable(T, ph)}${legend(ph)}</section>`;
 }
-const qCell = (T, id) => (id === BYE ? '<span class="muted">—</span>' : id ? `<strong>${esc(ename(T, id))}</strong> <small class="muted">${nrOf(T, id)}</small>` : '');
+const qCell = (T, id) => (id === BYE ? '<span class="muted">—</span>' : id ? `<strong>${esc(ename(T, id))}</strong>` : '');
 function qPlanTable(T, ph) {
   return `<div class="tblwrap"><table><thead><tr><th class="n">Poule</th><th>Bahnen</th><th>Reihe 1</th><th>Reihe 2</th><th>Reihe 3</th><th>Reihe 4</th><th>Erster</th><th>Zweiter</th></tr></thead><tbody>${ph.pools.map(x => { const r = qRes(T, ph, x);
     return `<tr><td class="n">${x.no}${x.three ? '<br><small class="muted">3er</small>' : ''}</td><td>${x.courts ? x.courts.join(' + ') : '–'}</td>${x.rows.map(id => `<td>${qCell(T, id)}</td>`).join('')}<td>${qCell(T, r.first)}</td><td>${qCell(T, r.second)}</td></tr>`; }).join('')}</tbody></table></div>`;
@@ -1099,8 +1102,8 @@ function vTabelle(T) {
 
 function bbox(T, ph, m) {
   if (m.auto === BYE) return '<div class="bm ghost"></div>';
-  if (m.auto && ph.cadrage && m.round === 1) return `<div class="bm"><div class="cap"><span>ohne Cadrage</span><span></span></div><div><span class="win">${esc(ename(T, m.auto))}</span><span></span></div></div>`;
-  const line = s => { const known = m.pa || m[s]; const w = winner(m) && winner(m) === m[s]; return `<div><span class="${known ? (w ? 'win' : '') : 'tbd'}">${esc(sideText(T, m, s))}</span><span class="${w ? 'win' : ''}">${played(m) ? (s === 'a' ? m.sa : m.sb) : ''}</span></div>`; };
+  if (m.auto && ph.cadrage && m.round === 1) return `<div class="bm"><div class="cap"><span>ohne Cadrage</span><span></span></div><div><span class="win" title="${esc(ename(T, m.auto))}">${esc(ename(T, m.auto))}</span><span></span></div></div>`;
+  const line = s => { const known = m.pa || m[s]; const w = winner(m) && winner(m) === m[s]; return `<div><span class="${known ? (w ? 'win' : '') : 'tbd'}" title="${esc(sideText(T, m, s))}">${esc(sideText(T, m, s))}</span><span class="${w ? 'win' : ''}">${played(m) ? (s === 'a' ? m.sa : m.sb) : ''}</span></div>`; };
   return `<div class="bm"><div class="cap"><span>Spiel ${m.no}${m.third ? ' · Platz 3' : ''}</span><span>${m.court && !played(m) ? 'Bahn ' + m.court : ''}</span></div>${line('a')}${line('b')}</div>`;
 }
 function bracketHtml(T, ph) {
@@ -1166,7 +1169,7 @@ function docHtml(T, doc) {
   if (doc === 'tabelle' && UI.tphase === 'final') doc = 'endstand';
   if (doc === 'meldeliste') {
     const mel = isMelee(T);
-    h = printHead(T, 'Meldeliste') + `<table><thead><tr><th>Nr.</th><th>${mel ? 'Name' : 'Team'}</th><th>Verein</th>${mel ? '' : '<th>Spieler</th>'}</tr></thead><tbody>${T.entries.slice().sort((a, b) => a.nr - b.nr).map(e => `<tr><td>${e.nr}</td><td>${esc(e.name)}</td><td>${esc(e.club)}</td>${mel ? '' : `<td>${esc(e.players)}</td>`}</tr>`).join('')}</tbody></table>`;
+    h = printHead(T, 'Meldeliste') + `<table><thead><tr><th>Nr.</th><th>${mel ? 'Name' : 'Team'}</th><th>Verein</th></tr></thead><tbody>${T.entries.slice().sort((a, b) => a.nr - b.nr).map(e => `<tr><td>${e.nr}</td><td>${esc(e.name)}</td><td>${esc(e.club)}</td></tr>`).join('')}</tbody></table>`;
   } else if (doc === 'paarungen') {
     const { phOf, ms, title } = selMatches(T), multi = new Set(ms.map(m => m.ph + ':' + m.round)).size > 1;
     const tag = m => [multi ? (UI.phase === 'all' ? phOf(m).title + ' · ' : '') + roundTitle(T, phOf(m), m.round) : '', matchTag(T, phOf(m), m)].filter(Boolean).join(' · ');
@@ -1285,7 +1288,7 @@ function savePdf(T, doc) {
 // Turnierbaum als Bild: eine Spalte je Runde, jedes Spiel als Kasten, Linien zum Folgespiel
 function bracketCanvas(T, ph) {
   const F = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', font = (sz, w) => `${w || 400} ${sz}px ${F}`;
-  const PAD = 32, CW = 260, GAP = 46, BH = 66, VS = 14, TOP = 132, CAP = 19, LH = (BH - CAP) / 2;
+  const PAD = 32, CW = 330, GAP = 46, BH = 66, VS = 14, TOP = 132, CAP = 19, LH = (BH - CAP) / 2;
   const ms = ph ? phaseMatches(T, ph) : [], R = ph ? ph.koRounds : 0, rounds = [], third = ms.find(m => m.third);
   for (let r = 1; r <= R; r++) rounds.push(ms.filter(m => m.round === r && !m.third).sort((a, b) => a.pos - b.pos));
   const cy = rounds.map(() => []), colX = r => PAD + r * (CW + GAP), ghost = m => m.auto === BYE;
@@ -1345,7 +1348,7 @@ function saveJpeg(T, doc) {
 function qPoule(T) {
   const ph = qPhase(T), head = printHead(T, 'Poule-Laufzettel').replace('<h1>', '<h1 style="font-size:12pt">');
   return ph.pools.map(x => {
-    const g = qPool(T, ph, x.no), c = i => (x.courts ? 'Bahn ' + x.courts[i] : ''), row = (i, id) => `<tr><td>Reihe ${i + 1}</td><td>${id === BYE ? '—' : esc(ename(T, id))}</td><td>${id === BYE ? '' : esc((entry(T, id) || {}).club || '')}</td><td>${id === BYE ? '' : nrOf(T, id)}</td></tr>`;
+    const g = qPool(T, ph, x.no), c = i => (x.courts ? 'Bahn ' + x.courts[i] : ''), row = (i, id) => `<tr><td>Reihe ${i + 1}</td><td>${id === BYE ? '—' : esc(tname(T, id))}</td><td>${id === BYE ? '' : esc((entry(T, id) || {}).club || '')}</td><td>${id === BYE ? '' : nrOf(T, id)}</td></tr>`;
     const side = (m, s, txt) => (real(m[s]) ? esc(ename(T, m[s])) + ` <small>(${txt})</small>` : esc(txt));
     const res = m => (m.auto ? 'spielfrei' : played(m) ? m.sa + ' : ' + m.sb : '____ : ____');
     const game = (r, m, a, b, note) => `<tr><td>${r}</td><td>${m.no}</td><td>${m.court || (m.kind === 'B' || m.kind === 'L' ? c(1) : c(0))}</td><td>${side(m, 'a', a)}</td><td>${side(m, 'b', b)}</td><td>${res(m)}</td><td>${note || ''}</td></tr>`;
@@ -1374,8 +1377,8 @@ function download(name, text, type) {
 const fname = (T, ext) => (T.name || 'turnier').replace(/[^\wäöüÄÖÜß-]+/g, '_') + ext;
 const csv = rows => '﻿' + rows.map(r => r.map(c => { c = String(c == null ? '' : c); if (/^[=+\-@\t\r]/.test(c)) c = "'" + c; return /[";\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(';')).join('\r\n');
 function csvEnd(T) {
-  const rows = [['Gesamtplatz', 'Wertung', 'Platz', isMelee(T) ? 'Name' : 'Team', 'Verein', 'Spieler', 'Hinweis']]; let n = 0;
-  finalSections(T).forEach(s => s.rows.forEach(r => { const e = entry(T, r.id) || {}; rows.push([++n, s.title, r.place, e.name, e.club, e.players, r.info || '']); }));
+  const rows = [['Gesamtplatz', 'Wertung', 'Platz', 'Nr.', isMelee(T) ? 'Name' : 'Team', 'Verein', 'Spieler', 'Hinweis']]; let n = 0;
+  finalSections(T).forEach(s => s.rows.forEach(r => { const e = entry(T, r.id) || {}; rows.push([++n, s.title, r.place, e.nr, e.name, e.club, e.players, r.info || '']); }));
   return csv(rows);
 }
 // Meldeliste aus Excel (.xlsx und das ältere .xls) oder CSV – ohne Zusatzbibliothek, funktioniert offline
