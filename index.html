@@ -1132,11 +1132,11 @@ function vDaten(T) {
   ${UI.storageOk ? '' : '<div class="statusbar next"><div><strong>Automatisches Speichern ist in diesem Browserfenster nicht möglich.</strong><span>Turniere und Spieler gehen beim Schließen verloren. Die Spielerdatenbank bitte unten über „Als Datei sichern“ sichern.</span></div></div>'}
   <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
     <p class="muted">Jeder gemeldete Spieler wird hier gespeichert. Beim nächsten Turnier erscheint er schon beim Eintippen von Vor- oder Nachname als Vorschlag – Auswahl mit Klick, Pfeiltasten und Enter. Die Daten bleiben nur auf diesem Gerät; zum Übertragen auf ein anderes Gerät die Datenbank als Datei sichern und dort laden.</p>
-    <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><button class="btn" data-act="pdb-exp">Als Datei sichern</button><label class="btn">Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-csv">Als CSV</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
+    <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><button class="btn" data-act="pdb-exp">Als Datei sichern</button><label class="btn">Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-xlsx">Als Excel-Datei</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
     ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th class="n">Turniere</th><th>Zuletzt</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
   </section>
-  <section class="card"><h2>Endstand exportieren</h2><p class="muted">Druckt den ${T.system === 'quali' ? 'Endstand (Ergebnisliste)' : 'Endstand'} oder speichert ihn als Bild, als PDF-Datei oder als CSV-Datei, die sich in Excel öffnen lässt.</p>
-    <div class="row"><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand drucken</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand als Bild (JPEG)</button><button class="btn" data-act="exp-pdf-end" ${T.started ? '' : 'disabled'}>Endstand als PDF</button><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
+  <section class="card"><h2>Endstand exportieren</h2><p class="muted">Druckt den ${T.system === 'quali' ? 'Endstand (Ergebnisliste)' : 'Endstand'} oder speichert ihn als Bild, als PDF-Datei oder als Excel-Datei.</p>
+    <div class="row"><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand drucken</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand als Bild (JPEG)</button><button class="btn" data-act="exp-pdf-end" ${T.started ? '' : 'disabled'}>Endstand als PDF</button><button class="btn" data-act="exp-xlsx-end" ${T.started ? '' : 'disabled'}>Endstand als Excel</button></div></section>
   ${T.system === 'quali' ? `<section class="card"><h2>Quali-Unterlagen</h2><p class="muted">Turnierplan mit allen Poules und ein Laufzettel je Poule (wird dem Team aus Reihe 1 ausgehändigt).</p>
     <div class="row"><button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan drucken</button><button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan als Bild (JPEG)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel drucken</button></div></section>` : ''}
   <section class="card"><h2>Turniere auf diesem Gerät</h2>
@@ -1375,11 +1375,11 @@ function download(name, text, type) {
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 const fname = (T, ext) => (T.name || 'turnier').replace(/[^\wäöüÄÖÜß-]+/g, '_') + ext;
-const csv = rows => '﻿' + rows.map(r => r.map(c => { c = String(c == null ? '' : c); if (/^[=+\-@\t\r]/.test(c)) c = "'" + c; return /[";\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(';')).join('\r\n');
-function csvEnd(T) {
-  const rows = [['Gesamtplatz', 'Wertung', 'Platz', 'Nr.', isMelee(T) ? 'Name' : 'Team', 'Verein', 'Spieler', 'Hinweis']]; let n = 0;
-  finalSections(T).forEach(s => s.rows.forEach(r => { const e = entry(T, r.id) || {}; rows.push([++n, s.title, r.place, e.nr, e.name, e.club, e.players, r.info || '']); }));
-  return csv(rows);
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+function endRows(T) {
+  const rows = [['Gesamtplatz', 'Wertung', 'Platz', 'Nr.', isMelee(T) ? 'Name' : 'Team', 'Verein', 'Hinweis']]; let n = 0;
+  finalSections(T).forEach(s => s.rows.forEach(r => { const e = entry(T, r.id) || {}; rows.push([++n, s.title, isNaN(+r.place) ? r.place : +r.place, e.nr, e.name, e.club, r.info || '']); }));
+  return rows;
 }
 // Meldeliste aus Excel (.xlsx und das ältere .xls) oder CSV – ohne Zusatzbibliothek, funktioniert offline
 function csvRows(text) {
@@ -1529,14 +1529,15 @@ async function readTable(file) {
   return csvRows(text);
 }
 // Excel-Vorlage (.xlsx) mit Kopfzeile passend zur Formation
-function xlsxFile(rows) {
+function xlsxFile(rows, title) {
   const enc = s => new TextEncoder().encode(s), x = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const sheetName = x(String(title || 'Tabelle').replace(/[^\wäöüÄÖÜß .()-]+/g, ' ').slice(0, 31));
   const col = i => (i >= 26 ? String.fromCharCode(64 + Math.floor(i / 26)) : '') + String.fromCharCode(65 + (i % 26));
-  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="${rows[0].length}" width="22" customWidth="1"/></cols><sheetData>${rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => `<c r="${col(ci)}${ri + 1}" t="inlineStr"${ri ? '' : ' s="1"'}><is><t>${x(v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData></worksheet>`;
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${rows[0].map((_, ci) => `<col min="${ci + 1}" max="${ci + 1}" width="${Math.min(50, Math.max(10, ...rows.map(r => String(r[ci] == null ? '' : r[ci]).length + 2)))}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => typeof v === 'number' && isFinite(v) ? `<c r="${col(ci)}${ri + 1}"${ri ? '' : ' s="1"'}><v>${v}</v></c>` : `<c r="${col(ci)}${ri + 1}" t="inlineStr"${ri ? '' : ' s="1"'}><is><t>${x(v == null ? '' : v)}</t></is></c>`).join('')}</row>`).join('')}</sheetData></worksheet>`;
   const files = {
     '[Content_Types].xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
     '_rels/.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
-    'xl/workbook.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Meldeliste" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/workbook.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${sheetName}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
     'xl/_rels/workbook.xml.rels': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
     'xl/styles.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Standard" xfId="0" builtinId="0"/></cellStyles></styleSheet>',
     'xl/worksheets/sheet1.xml': sheet,
@@ -1600,7 +1601,7 @@ const ACT = {
   'entry-del': el => { const T = cur(); T.entries = T.entries.filter(e => e.id !== el.dataset.id); T.entries.sort((a, b) => a.nr - b.nr).forEach((e, i) => { e.nr = i + 1; }); save(); render(); },
   'entry-clear': () => { const T = cur(); ask(`Wirklich alle ${T.entries.length} ${who(T, true)} aus der Meldeliste löschen? Das lässt sich nicht rückgängig machen.`, () => { T.entries = []; UI.editId = null; save(); render(); toast('Meldeliste geleert.'); }, 'Alle löschen'); },
   'entry-toggle': el => { const e = entry(cur(), el.dataset.id); e.active = e.active === false; save(); render(); },
-  'imp-tpl': () => { const T = cur(); download('Meldeliste_Vorlage_' + (isMelee(T) ? 'Supermelee' : { tete: 'Tete-a-tete', doublette: 'Doublette', triplette: 'Triplette' }[T.formation]) + '.xlsx', xlsxFile([importHead(T)]), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); },
+  'imp-tpl': () => { const T = cur(); download('Meldeliste_Vorlage_' + (isMelee(T) ? 'Supermelee' : { tete: 'Tete-a-tete', doublette: 'Doublette', triplette: 'Triplette' }[T.formation]) + '.xlsx', xlsxFile([importHead(T)], 'Meldeliste'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); },
   demo: () => {
     const T = cur(), n = Math.max(1, Math.min(128, +$('#demo-n').value || 0)), k = teamSize(T);
     for (let i = 0; i < n; i++) addEntry(T, { members: demoMembers(T, k) }).demo = true;
@@ -1609,7 +1610,7 @@ const ACT = {
   print: el => printDoc(cur(), el.dataset.doc),
   jpg: el => saveJpeg(cur(), el.dataset.doc),
   'exp-pdf-end': () => savePdf(cur(), 'endstand'),
-  'exp-csv-end': () => { const T = cur(); download(fname(T, '_Endstand.csv'), csvEnd(T), 'text/csv;charset=utf-8'); },
+  'exp-xlsx-end': () => { const T = cur(); download(fname(T, '_Endstand.xlsx'), xlsxFile(endRows(T), T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'), XLSX); },
   't-new': () => { const t = newTournament(); DB.tournaments.push(t); DB.current = t.id; UI.undo = []; UI.tab = 'turnier'; selDefault(t); save(); render(); },
   't-open': el => { DB.current = el.dataset.id; UI.undo = []; selDefault(cur()); save(); render(); },
   't-copy': el => { const s = DB.tournaments.find(t => t.id === el.dataset.id), t = newTournament(s.name + ' (Kopie)'); t.system = s.system; t.formation = s.formation; t.place = s.place; t.opts = Object.assign({}, s.opts); s.entries.forEach(e => addEntry(t, e.members && e.members.length ? { members: e.members } : e)); DB.tournaments.push(t); DB.current = t.id; UI.undo = []; UI.tab = 'turnier'; selDefault(t); save(); render(); toast('Neues Turnier mit derselben Meldeliste angelegt.'); },
@@ -1628,7 +1629,7 @@ const ACT = {
   'pdb-del': el => { DB.players = pdb().filter(p => pdbKey(p.first, p.last) !== el.dataset.k); save(); render(); },
   'pdb-clear': () => ask(`Alle ${pdb().length} Spieler aus der Datenbank löschen? Die Meldelisten der Turniere bleiben unverändert.`, () => { DB.players = []; save(); render(); }, 'Alle löschen'),
   'pdb-exp': () => download('Spielerdatenbank.json', JSON.stringify({ app: 'petanque-spielerdatenbank', version: 1, players: pdb() }, null, 1), 'application/json'),
-  'pdb-csv': () => download('Spielerdatenbank.csv', csv([['Vorname', 'Name', 'Verein', 'Turniere', 'Zuletzt']].concat(pdb().map(p => [p.first, p.last, p.club, p.n || 0, p.seen || '']))), 'text/csv;charset=utf-8'),
+  'pdb-xlsx': () => download('Spielerdatenbank.xlsx', xlsxFile([['Name', 'Vorname', 'Verein', 'Turniere', 'Zuletzt']].concat(pdb().slice().sort((a, b) => (a.last + a.first).localeCompare(b.last + b.first, 'de')).map(p => [p.last, p.first, p.club, p.n || 0, p.seen ? p.seen.split('-').reverse().join('.') : ''])), 'Spielerdatenbank'), XLSX),
   'modal-yes': () => { $('#modal').hidden = true; const f = modalYes; modalYes = null; if (f) f(); },
   'modal-no': () => { $('#modal').hidden = true; modalYes = null; render(); },
 };
