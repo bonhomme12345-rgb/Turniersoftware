@@ -1146,7 +1146,7 @@ function vBaum(T) {
   if (!br.length) return `<div class="card empty">${T.started && HAS_FINALS[T.system] ? 'Der Turnierbaum erscheint, sobald die K.O.-Runde ausgelost ist.' : T.started ? 'Dieses Turniersystem hat keinen Turnierbaum.' : 'Der Turnierbaum erscheint nach dem Start eines Turniers mit K.O.-Phase.'}</div>`;
   if (!br.some(p => p.id === UI.bphase)) UI.bphase = br[0].id;
   const ph = br.find(p => p.id === UI.bphase);
-  return (br.length > 1 ? `<div class="pills">${br.map(p => `<button class="pill ${p.id === ph.id ? 'on' : ''}" data-act="bphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}</div>` : '') + `<section class="card"><h2>${esc(ph.title)}</h2>${bracketHtml(T, ph)}</section>`;
+  return (br.length > 1 ? `<div class="pills">${br.map(p => `<button class="pill ${p.id === ph.id ? 'on' : ''}" data-act="bphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}</div>` : '') + `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)}</h2><button class="btn sm" data-act="jpg" data-doc="baum" title="Diesen Turnierbaum als Bilddatei herunterladen">Als Bild (JPEG)</button></div>${bracketHtml(T, ph)}</section>`;
 }
 
 function pdbRows(q) {
@@ -1163,8 +1163,8 @@ function vDaten(T) {
     <div class="row"><button class="btn primary" data-act="filesave">In Datei speichern</button><span class="muted">${DB.fileSavedAt ? 'Zuletzt gespeichert: ' + new Date(DB.fileSavedAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }) + (unsaved() ? ' · <strong style="color:var(--danger)">seitdem neue oder geänderte Spieler</strong>' : ' · Spielerdatenbank aktuell') : 'Noch nicht in der Datei gespeichert.'}</span></div></section>
   <section class="card"><h2>Drucken</h2><p class="muted">Erzeugt eine Druckansicht (auch „Als PDF speichern“). Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde.</p>
     <div class="row"><button class="btn" data-act="print" data-doc="meldeliste">Meldeliste</button><button class="btn" data-act="print" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen mit Bahnen</button><button class="btn" data-act="print" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel</button>` : ''}</div></section>
-  <section class="card"><h2>Als Bild herunterladen (JPEG)</h2><p class="muted">Speichert die Ansicht als Bilddatei, z. B. zum Verschicken oder für einen Bildschirm am Platz. Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde, die Tabelle auf die im Reiter „Tabelle“ gewählte Phase.</p>
-    <div class="row"><button class="btn" data-act="jpg" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen</button><button class="btn" data-act="jpg" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button>` : ''}</div></section>
+  <section class="card"><h2>Als Bild herunterladen (JPEG)</h2><p class="muted">Speichert die Ansicht als Bilddatei, z. B. zum Verschicken oder für einen Bildschirm am Platz. Die Paarungen beziehen sich auf die im Reiter „Spiele“ gewählte Runde, die Tabelle auf die im Reiter „Tabelle“ gewählte Phase, der Turnierbaum auf das im Reiter „Turnierbaum“ gewählte Turnier.</p>
+    <div class="row"><button class="btn" data-act="jpg" data-doc="paarungen" ${T.started ? '' : 'disabled'}>Paarungen</button><button class="btn" data-act="jpg" data-doc="tabelle" ${T.started ? '' : 'disabled'}>Tabelle</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>${T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'}</button>${T.system === 'quali' ? `<button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan (Poules)</button>` : ''}${T.phases.some(p => p.type === 'ko') ? '<button class="btn" data-act="jpg" data-doc="baum">Turnierbaum</button>' : ''}</div></section>
   <section class="card"><h2>Endstand exportieren</h2><p class="muted">Erzeugt eine CSV-Datei mit dem Endstand, die sich in Excel öffnen lässt.</p>
     <div class="row"><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
   <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
@@ -1280,8 +1280,58 @@ function jpegFromHtml(html, name) {
   cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); pass(true);
   cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
 }
+// Turnierbaum als Bild: eine Spalte je Runde, jedes Spiel als Kasten, Linien zum Folgespiel
+function jpegBracket(T, ph, name) {
+  const F = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', font = (sz, w) => `${w || 400} ${sz}px ${F}`;
+  const PAD = 32, CW = 260, GAP = 46, BH = 66, VS = 14, TOP = 132, CAP = 19, LH = (BH - CAP) / 2;
+  const ms = phaseMatches(T, ph), R = ph.koRounds, rounds = [], third = ms.find(m => m.third);
+  for (let r = 1; r <= R; r++) rounds.push(ms.filter(m => m.round === r && !m.third).sort((a, b) => a.pos - b.pos));
+  const cy = rounds.map(() => []), colX = r => PAD + r * (CW + GAP), ghost = m => m.auto === BYE;
+  rounds[0].forEach((m, i) => { cy[0][i] = TOP + i * (BH + VS) + BH / 2; });
+  for (let r = 1; r < R; r++) rounds[r].forEach((m, j) => { const a = cy[r - 1][2 * j], b = cy[r - 1][2 * j + 1]; cy[r][j] = b == null ? a : (a + b) / 2; });
+  const treeBottom = TOP + rounds[0].length * (BH + VS), W = Math.max(720, PAD * 2 + R * CW + (R - 1) * GAP), H = treeBottom + (third ? BH + 64 : 0) + 44 + PAD;
+  const sc = Math.max(1, Math.min(2, Math.floor(30000 / H))), cv = document.createElement('canvas'); cv.width = W * sc; cv.height = H * sc;
+  const cx = cv.getContext('2d'); cx.scale(sc, sc); cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H);
+  const mw = (t, f) => { cx.font = f; return cx.measureText(t).width; };
+  const fit = (t, f, max) => { if (mw(t, f) <= max) return t; while (t.length > 1 && mw(t + '…', f) > max) t = t.slice(0, -1); return t + '…'; };
+  const text = (t, f, col, x, y, align) => { cx.font = f; cx.fillStyle = col; cx.textAlign = align || 'left'; cx.textBaseline = 'middle'; cx.fillText(t, x, y); };
+  const rrect = (x, y, w, h, rad) => { cx.beginPath(); cx.moveTo(x + rad, y); cx.arcTo(x + w, y, x + w, y + h, rad); cx.arcTo(x + w, y + h, x, y + h, rad); cx.arcTo(x, y + h, x, y, rad); cx.arcTo(x, y, x + w, y, rad); cx.closePath(); };
+  text(T.name, font(26, 700), '#1d1b18', PAD, PAD + 16);
+  text([T.date ? T.date.split('-').reverse().join('.') : '', T.place, SYSTEMS[T.system].name, FORM[T.formation] || ''].filter(Boolean).join(' · ') + ' – Turnierbaum ' + ph.title, font(14), '#555', PAD, PAD + 50);
+  rounds.forEach((_, r) => text(roundTitle(T, ph, r + 1).toUpperCase(), font(12, 700), '#7a3b1e', colX(r) + CW / 2, TOP - 22, 'center'));
+  cx.strokeStyle = '#c9bfb0'; cx.lineWidth = 1.5;
+  for (let r = 1; r < R; r++) rounds[r].forEach((m, j) => [rounds[r - 1][2 * j], rounds[r - 1][2 * j + 1]].forEach((c, k) => {
+    if (!c || ghost(c)) return; const y0 = cy[r - 1][2 * j + k], xm = colX(r) - GAP / 2;
+    cx.beginPath(); cx.moveTo(colX(r - 1) + CW, y0); cx.lineTo(xm, y0); cx.lineTo(xm, cy[r][j]); cx.lineTo(colX(r), cy[r][j]); cx.stroke();
+  }));
+  const box = (m, x, yc) => {
+    if (ghost(m)) return;
+    const free = !!m.auto, bh = free ? CAP + LH : BH, y = yc - bh / 2; // Freilos-Kasten nur mit einer Zeile
+    rrect(x, y, CW, bh, 8); cx.fillStyle = '#faf7f2'; cx.fill(); cx.strokeStyle = '#d9d2c6'; cx.lineWidth = 1; cx.stroke();
+    cx.save(); rrect(x, y, CW, bh, 8); cx.clip(); cx.fillStyle = '#efe9df'; cx.fillRect(x, y, CW, CAP); cx.restore();
+    const cap = free ? (ph.cadrage && m.round === 1 ? 'ohne Cadrage' : 'Freilos') : 'Spiel ' + m.no + (m.third ? ' · Platz 3' : '');
+    text(cap, font(11), '#777', x + 8, y + CAP / 2); if (m.court && !played(m)) text('Bahn ' + m.court, font(11, 700), '#7a3b1e', x + CW - 8, y + CAP / 2, 'right');
+    const w = winner(m), line = (s, i) => {
+      const yy = y + CAP + LH * i + LH / 2, known = !!m[s], win = !!w && w === m[s], sc = played(m) ? String(s === 'a' ? m.sa : m.sb) : '';
+      const f = known ? font(14, win ? 700 : 400) : 'italic ' + font(13), nm = free ? (i === 0 ? ename(T, m.auto) : '') : sideText(T, m, s);
+      text(fit(nm, f, CW - 52), f, known || free ? '#1d1b18' : '#999', x + 10, yy);
+      if (sc) text(sc, font(14, win ? 700 : 400), '#1d1b18', x + CW - 10, yy, 'right');
+      if (i === 0 && !free) { cx.fillStyle = '#e4ddd1'; cx.fillRect(x + 1, y + CAP + LH, CW - 2, 1); }
+    };
+    line('a', 0); if (!free) line('b', 1);
+  };
+  rounds.forEach((list, r) => list.forEach((m, j) => box(m, colX(r), cy[r][j])));
+  if (third) { text('Spiel um Platz 3', font(16, 700), '#7a3b1e', colX(R - 1), treeBottom + 12); box(third, colX(R - 1), treeBottom + 34 + BH / 2); }
+  text('Pétanque-Turnierleitung · Stand ' + new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' }), font(12), '#888', PAD, H - PAD - 6);
+  cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
+}
 const JPG_NAME = { paarungen: '_Paarungen', tabelle: '_Tabelle', endstand: '_Endstand', turnierplan: '_Turnierplan' };
 function saveJpeg(T, doc) {
+  if (doc === 'baum') {
+    const br = T.phases.filter(p => p.type === 'ko'), ph = br.find(p => p.id === UI.bphase) || br[0];
+    if (!ph) return toast('Es gibt noch keinen Turnierbaum.');
+    return jpegBracket(T, ph, fname(T, '_Turnierbaum' + (br.length > 1 ? '_' + ph.title : '') + '.jpg'));
+  }
   const d = doc === 'tabelle' && UI.tphase === 'final' ? 'endstand' : doc, html = docHtml(T, d);
   if (!htmlBlocks(html).some(b => b.kind === 'table' && b.rows.length > 1)) return toast('Für diese Auswahl gibt es noch nichts anzuzeigen.');
   jpegFromHtml(html, fname(T, (JPG_NAME[d] || '_' + d) + '.jpg'));
