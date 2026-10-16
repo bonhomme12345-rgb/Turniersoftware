@@ -1139,9 +1139,7 @@ function vDaten(T) {
     <div class="row"><button class="btn" data-act="exp-csv-end" ${T.started ? '' : 'disabled'}>Endstand als CSV</button></div></section>
   <section class="card"><h2>Turniere auf diesem Gerät</h2>
     <div class="tblwrap"><table><tbody>${DB.tournaments.map(t => `<tr><td><strong>${esc(t.name)}</strong> <small>${esc(t.date)} · ${esc(SYSTEMS[t.system].name)} · ${t.entries.length} Meldungen</small></td><td class="n"><span class="row" style="justify-content:flex-end">${t.id === T.id ? '<span class="tag">geöffnet</span>' : `<button class="btn sm" data-act="t-open" data-id="${t.id}">Öffnen</button>`}<button class="btn sm" data-act="t-copy" data-id="${t.id}">Meldeliste kopieren</button><button class="btn sm danger" data-act="t-del" data-id="${t.id}">Löschen</button></span></td></tr>`).join('')}</tbody></table></div>
-    <div class="row" style="margin-top:12px"><button class="btn" data-act="t-new">Neues Turnier</button></div></section>
-  <section class="card"><h2>Testlauf</h2><p class="muted">Trägt in alle offenen Spiele mit feststehenden Gegnern Zufallsergebnisse ein – praktisch, um ein System vorab durchzuspielen. Derselbe Knopf steht im Reiter „Spiele“ oben in der Statusleiste. Nicht im echten Turnier verwenden.</p>
-    <button class="btn" data-act="rnd" ${T.started ? '' : 'disabled'}>Offene Spiele zufällig füllen</button></section>`;
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="t-new">Neues Turnier</button></div></section>`;
 }
 
 /* ---------- Drucken ---------- */
