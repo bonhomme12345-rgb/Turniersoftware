@@ -930,9 +930,10 @@ function vTurnier(T) {
   return `
   <section class="card"><h2>Turnierdaten</h2><div class="grid">
     ${fld('Turniername', 'name', 'text')}${fld('Datum', 'date', 'date')}${fld('Ort', 'place', 'text')}
-    <label class="f">Formation<select data-f="formation" ${isMelee(T) || T.started ? 'disabled' : ''} title="${isMelee(T) ? 'Bei Supermêlée immer Tête-à-tête 1:1 / SM' : ''}">${Object.keys(FORM).map(k => `<option value="${k}" ${(isMelee(T) ? 'tete' : T.formation) === k ? 'selected' : ''}>${FORM[k]}</option>`).join('')}</select></label>
+    <label class="f">Formation<select data-f="formation" ${isMelee(T) || T.started || T.entries.length ? 'disabled' : ''} title="${isMelee(T) ? 'Bei Supermêlée immer Tête-à-tête 1:1 / SM' : T.entries.length ? 'Festgelegt, solange Meldungen in der Meldeliste stehen' : ''}">${Object.keys(FORM).map(k => `<option value="${k}" ${(isMelee(T) ? 'tete' : T.formation) === k ? 'selected' : ''}>${FORM[k]}</option>`).join('')}</select></label>
     ${num('Anzahl Bahnen', 'courts', 1, 200, false)}
-  </div></section>
+  </div>
+    ${T.entries.length && !T.started && !isMelee(T) ? `<p class="note" style="margin-bottom:0">Die Formation bleibt ${esc(FORM[T.formation])}, solange ${who(T, true)} gemeldet sind. Zum Ändern zuerst die Meldeliste leeren.</p>` : ''}</section>
   <section class="card"><h2>Turniersystem</h2>
     <div class="sys">${Object.keys(SYSTEMS).map(k => { const off = k === 'melee' && hasTeams; return `<label class="${T.system === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="Nicht wählbar, solange 2er- oder 3er-Teams gemeldet sind"' : ''}><input type="radio" name="sys" data-sys="${k}" ${T.system === k ? 'checked' : ''} ${dis || (off ? 'disabled' : '')}>${SYSTEMS[k].name}</label>`; }).join('')}</div>
     ${hasTeams && !T.started && !isMelee(T) ? '<p class="note">Supermêlée ist nicht wählbar, solange 2er- oder 3er-Teams in der Meldeliste stehen. Dafür bitte zuerst die Meldeliste leeren.</p>' : ''}
@@ -1616,6 +1617,7 @@ document.addEventListener('change', e => {
   if (el.classList.contains('sc')) { const row = el.closest('.match'); saveScore(row, el === row.querySelectorAll('input.sc')[1]); return; }
   if (el.dataset.sys) { if (el.dataset.sys === 'melee' && T.entries.some(e => membersOf(e).length > 1)) { toast('Supermêlée ist nicht wählbar, solange 2er- oder 3er-Teams gemeldet sind.'); render(); return; } T.system = el.dataset.sys; if (T.system === 'melee') T.formation = 'tete'; save(); render(); return; }
   if (el.dataset.f === 'formation' && isMelee(T)) { T.formation = 'tete'; render(); return; }
+  if (el.dataset.f === 'formation' && T.entries.length) { toast('Die Formation lässt sich nicht ändern, solange Meldungen in der Meldeliste stehen.'); render(); return; }
   if (el.dataset.f) { T[el.dataset.f] = el.value; save(); if (el.tagName === 'SELECT') render(); else { $('#tsel').selectedOptions[0].textContent = T.name; document.title = T.name + ' – Pétanque-Turnierleitung'; } return; }
   if (el.dataset.o) {
     const k = el.dataset.o; T.opts[k] = el.type === 'checkbox' ? el.checked : k === 'field' ? +el.value : el.type === 'number' ? Math.max(+el.min || 0, Math.min(+el.max || 999, Math.round(+el.value) || 0)) : el.value;
