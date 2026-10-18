@@ -773,6 +773,7 @@ function setScore(T, mid, sa, sb) {
   else {
     if (!Number.isInteger(sa) || !Number.isInteger(sb) || sa < 0 || sb < 0) throw new Error('Bitte ganze Zahlen ab 0 eintragen.');
     if (sa === sb) throw new Error('Unentschieden gibt es im Pétanque nicht – bitte Ergebnis prüfen.');
+    const t = T.opts.target | 0 || 13; if (sa > t || sb > t) throw new Error(`Höchstens ${t} Punkte – bitte Ergebnis prüfen.`);
     m.sa = sa; m.sb = sb;
   }
   propagate(T); assignCourts(T);
@@ -1023,7 +1024,7 @@ function matchRow(T, ph, m, locked) {
   }
   const known = !!m.pa || (real(m.a) && real(m.b)), can = known && !m.hold, pl = played(m), d = (!can || locked || m.wo) ? 'disabled' : '';
   const court = m.wo ? `<div class="m-court none">kampflos</div>` : m.court ? `<div class="m-court">Bahn ${m.court}</div>` : `<div class="m-court none">${pl ? '' : can ? 'wartet auf Bahn' : m.hold ? 'nach der Cadrage' : 'offen'}</div>`;
-  const inp = (v, s) => `<input class="sc" type="number" inputmode="numeric" min="0" max="99" value="${v == null ? '' : v}" ${d} aria-label="Punkte ${s}">`;
+  const inp = (v, s) => `<input class="sc" type="number" inputmode="numeric" min="0" max="${T.opts.target | 0 || 13}" value="${v == null ? '' : v}" ${d} aria-label="Punkte ${s}">`;
   return `<div class="match ${pl ? 'done' : can ? '' : 'wait'}" data-mid="${m.id}">${court}
     <div class="m-a ${pl && m.sa > m.sb ? 'win' : ''}">${sideHtml(T, m, 'a')}</div>
     <div class="m-sc">${inp(m.sa, 'links')}<span>:</span>${inp(m.sb, 'rechts')}</div>
