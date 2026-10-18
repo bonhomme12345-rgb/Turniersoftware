@@ -1727,7 +1727,7 @@ function suggShow(row, field) {
   const T = cur(), inT = new Set(T.entries.flatMap(e => membersOf(e).map(m => pdbKey(m.first, m.last))));
   const list = pdbSearch(q, 8, field); if (!list.length) { suggHide(); return; }
   SUG.row = row; SUG.list = list; SUG.i = 0;
-  box.innerHTML = list.map((p, i) => `<div class="sg ${i === 0 ? 'on' : ''}" data-sg="${i}"><b>${esc(p.first)} ${esc(p.last)}</b>${p.club ? ` <span>${esc(p.club)}</span>` : ''}${inT.has(pdbKey(p.first, p.last)) ? ' <span class="tag">bereits gemeldet</span>' : p.n ? ` <small>${p.n}× dabei</small>` : ''}</div>`).join('');
+  box.innerHTML = list.map((p, i) => `<div class="sg ${i === 0 ? 'on' : ''}" data-sg="${i}"><b>${esc(p.first)} ${esc(p.last)}</b>${p.club ? ` <span>${esc(p.club)}</span>` : ''}${inT.has(pdbKey(p.first, p.last)) ? ' <span class="tag">bereits gemeldet</span>' : ''}</div>`).join('');
   box.hidden = false;
 }
 function suggPick(i) {
