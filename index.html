@@ -844,7 +844,7 @@ const rankMode = ph => ph.type;
 const pdbKey = (f, l) => ((f || '').trim() + '|' + (l || '').trim()).toLowerCase();
 const pdb = () => DB.players || (DB.players = []);
 function rememberPlayers(members, count, date) {
-  members.forEach(m => {
+  composeEntry(members).members.forEach(m => { // leerer Verein = Verein des ersten Spielers
     if (!m.first && !m.last) return;
     const k = pdbKey(m.first, m.last); let p = pdb().find(x => pdbKey(x.first, x.last) === k);
     if (!p) { p = { first: (m.first || '').trim(), last: (m.last || '').trim(), club: (m.club || '').trim(), n: 0, seen: '' }; pdb().push(p); }
@@ -1156,7 +1156,7 @@ function vBaum(T) {
 function pdbRows(q) {
   const all = pdb().slice().sort((a, b) => (a.last + a.first).localeCompare(b.last + b.first, 'de'));
   const list = q && q.trim() ? pdbSearch(q, 500) : all;
-  return list.map(p => `<tr><td>${esc(p.first)}</td><td><strong>${esc(p.last)}</strong></td><td>${esc(p.club)}</td><td>${esc(p.seen ? p.seen.split('-').reverse().join('.') : '')}</td><td class="n"><button class="btn sm danger" data-act="pdb-del" data-k="${esc(pdbKey(p.first, p.last))}">Löschen</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Keine Treffer.</td></tr>';
+  return list.map(p => `<tr><td>${esc(p.first)}</td><td><strong>${esc(p.last)}</strong></td><td>${esc(p.club)}</td><td class="n"><button class="btn sm danger" data-act="pdb-del" data-k="${esc(pdbKey(p.first, p.last))}">Löschen</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Keine Treffer.</td></tr>';
 }
 function pdbRenderList() { const t = $('#pdb-list'); if (t) t.innerHTML = pdbRows(($('#pdb-q') || {}).value || ''); }
 function vDaten(T) {
@@ -1165,7 +1165,7 @@ function vDaten(T) {
   <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
     <p class="muted">Jeder gemeldete Spieler wird hier gespeichert. Beim nächsten Turnier erscheint er schon beim Eintippen von Vor- oder Nachname als Vorschlag – Auswahl mit Klick, Pfeiltasten und Enter. Die Daten bleiben nur auf diesem Gerät; zum Übertragen auf ein anderes Gerät die Datenbank als Datei sichern und dort laden.</p>
     <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><button class="btn" data-act="pdb-exp">Als Datei sichern</button><label class="btn">Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-xlsx">Als Excel-Datei</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
-    ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th>Zuletzt</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
+    ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
   </section>
   <section class="card"><h2>Endstand exportieren</h2><p class="muted">Druckt den ${T.system === 'quali' ? 'Endstand (Ergebnisliste)' : 'Endstand'} oder speichert ihn als Bild, als PDF-Datei oder als Excel-Datei.</p>
     <div class="row"><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand drucken</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand als Bild (JPEG)</button><button class="btn" data-act="exp-pdf-end" ${T.started ? '' : 'disabled'}>Endstand als PDF</button><button class="btn" data-act="exp-xlsx-end" ${T.started ? '' : 'disabled'}>Endstand als Excel</button></div></section>
@@ -1668,7 +1668,7 @@ const ACT = {
   'pdb-del': el => { DB.players = pdb().filter(p => pdbKey(p.first, p.last) !== el.dataset.k); save(); render(); },
   'pdb-clear': () => ask(`Alle ${pdb().length} Spieler aus der Datenbank löschen? Die Meldelisten der Turniere bleiben unverändert.`, () => { DB.players = []; save(); render(); }, 'Alle löschen'),
   'pdb-exp': () => download('Spielerdatenbank.json', JSON.stringify({ app: 'petanque-spielerdatenbank', version: 1, players: pdb() }, null, 1), 'application/json'),
-  'pdb-xlsx': () => download('Spielerdatenbank.xlsx', xlsxFile([['Name', 'Vorname', 'Verein', 'Zuletzt']].concat(pdb().slice().sort((a, b) => (a.last + a.first).localeCompare(b.last + b.first, 'de')).map(p => [p.last, p.first, p.club, p.seen ? p.seen.split('-').reverse().join('.') : ''])), 'Spielerdatenbank'), XLSX),
+  'pdb-xlsx': () => download('Spielerdatenbank.xlsx', xlsxFile([['Name', 'Vorname', 'Verein']].concat(pdb().slice().sort((a, b) => (a.last + a.first).localeCompare(b.last + b.first, 'de')).map(p => [p.last, p.first, p.club])), 'Spielerdatenbank'), XLSX),
   'modal-yes': () => { $('#modal').hidden = true; const f = modalYes; modalYes = null; if (f) f(); },
   'modal-no': () => { $('#modal').hidden = true; modalYes = null; render(); },
 };
