@@ -558,10 +558,13 @@ function qFold(list, poolOf) {
 }
 // Cadrage: Auswahl (und Hilfsliste) Zweite der 3er-Poules, Zweite der 4er-Poules, Erste der 3er-Poules,
 // Erste der 4er-Poules, jeweils von der höchsten Poule-Nummer abwärts, bis 2 · Cadrage-Spiele erreicht sind
-function drawQCad(T) {
+function qCadList(T) {
   const pp = qPhase(T), pl = pp.plan, desc = pp.pools.slice().sort((a, b) => b.no - a.no), res = new Map(pp.pools.map(x => [x.no, qRes(T, pp, x)]));
   const pick = (k, three) => desc.filter(x => !!x.three === three).map(x => res.get(x.no)[k]).filter(real);
-  const list = [...pick('second', true), ...pick('second', false), ...pick('first', true), ...pick('first', false)].slice(0, 2 * pl.cad);
+  return [...pick('second', true), ...pick('second', false), ...pick('first', true), ...pick('first', false)].slice(0, 2 * pl.cad);
+}
+function drawQCad(T) {
+  const pp = qPhase(T), list = qCadList(T), res = new Map(pp.pools.map(x => [x.no, qRes(T, pp, x)]));
   const firsts = new Set(pp.pools.map(x => res.get(x.no).first));
   const ph = addPhase(T, { type: 'qcad', title: 'Cadrage', stage: 2, ids: list, list, round: 1 });
   qFold(list, qPoolOf(pp)).forEach(([a, b], i) => addMatch(T, ph, { round: 1, pos: i, cno: i + 1, star: firsts.has(a) || firsts.has(b), a, b }));
@@ -801,7 +804,7 @@ function finalSections(T) {
   return out;
 }
 
-if (typeof module !== 'undefined') module.exports = { qForfeit, qReactivate, entry, BYE, SYSTEMS, HAS_FINALS, newTournament, addEntry, composeEntry, start, next, status, setScore, standings, finalSections, playable, played, pending, real, phaseMatches, validate, winner, loser, activeIds, maxStage, finalsPlan, koPlan, cadrageOpen, cadrageOpenIn, isCadrage, playedCount, propagate, assignCourts, entry, nrOf, stats, koRanking, qPlan, qPool, qRes, qInfo, qPoolOf, qFold, qkoList, drawQCad, drawQKo, qLate, qLateSlot, qStatus, qFinal };
+if (typeof module !== 'undefined') module.exports = { qCadList, qkoList, qStatus, qForfeit, qReactivate, entry, BYE, SYSTEMS, HAS_FINALS, newTournament, addEntry, composeEntry, start, next, status, setScore, standings, finalSections, playable, played, pending, real, phaseMatches, validate, winner, loser, activeIds, maxStage, finalsPlan, koPlan, cadrageOpen, cadrageOpenIn, isCadrage, playedCount, propagate, assignCourts, entry, nrOf, stats, koRanking, qPlan, qPool, qRes, qInfo, qPoolOf, qFold, qkoList, drawQCad, drawQKo, qLate, qLateSlot, qStatus, qFinal };
 
 /* ===================== Oberfläche ===================== */
 const LS_KEY = 'petanque-turnierleitung-v1';
@@ -1090,8 +1093,8 @@ function phaseTable(T, ph) {
   if (ph.type === 'cad') return `<section class="card"><h2>In der Cadrage ausgeschieden</h2>${rankList(T, cadLosers(T, ph))}</section>`;
   if (ph.type === 'pre') return `<section class="card"><h2>Runde 1 und 2</h2><p class="muted">Die ersten beiden Runden teilen das Feld ein: zwei Siege = A, Sieg dann Niederlage = B, Niederlage dann Sieg = C, zwei Niederlagen = D. Die Platzierungen stehen bei den Turnieren A bis D und im Endstand.</p>${preGroups(T, ph)}</section>`;
   if (ph.type === 'ko') return `<section class="card"><h2>${esc(ph.title)} – Platzierungen</h2>${rankList(T, koRanking(T, ph))}</section>`;
-  if (ph.type === 'poule') return `<section class="card"><h2>Turnierplan – Poules</h2>${qPlanTable(T, ph)}<p class="note">Reihe 1 und 2 sind nach der Setzliste gesetzt (kleine Zahl = Setzplatz), Reihe 3 und 4 zugelost (höhere Setzplatz-Nummer in Reihe 4). Erster = Sieger des Siegerspiels, Zweiter = Sieger der Barrage.</p></section>`;
-  if (ph.type === 'qcad') return `<section class="card"><h2>Cadrage</h2>${qCadTable(T, ph)}</section>`;
+  if (ph.type === 'poule') return `<section class="card"><h2>Turnierplan – Poules</h2>${qPlanTable(T, ph)}<p class="note">Reihe 1 und 2 sind nach der Setzliste gesetzt (kleine Zahl = Setzplatz), Reihe 3 und 4 zugelost (höhere Setzplatz-Nummer in Reihe 4). Erster = Sieger des Siegerspiels, Zweiter = Sieger der Barrage.</p></section>${qPreview(T, ph)}`;
+  if (ph.type === 'qcad') return `<section class="card"><h2>Cadrage</h2>${qCadTable(T, ph)}</section>${qPreview(T, ph)}`;
   if (ph.type === 'qko') return `<section class="card"><h2>K.O.-Runden</h2>${qKoTable(T, ph)}</section>`;
   return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)} – Stand nach Runde ${ph.round}</h2></div>${stTable(T, ph)}${legend(ph)}</section>`;
 }
@@ -1112,6 +1115,18 @@ function qCadTable(T, ph) {
   return `<h3>Hilfsliste (${ph.list.length} Teams)</h3>${qList(T, ph.list, lab)}<p class="note">Erster der Liste gegen Letzten, Zweiter gegen Vorletzten usw. Ein Stern * bedeutet: ein Poule-Sieger spielt mit. Treffen zwei Teams aus demselben Poule aufeinander, wird der Gegner mit dem der nächsten Partie getauscht.</p>
     <h3>Partien</h3>${qGames(T, phaseMatches(T, ph).slice().sort((a, b) => a.cno - b.cno), m => `Cadrage ${m.cno}${m.star ? '*' : ''}`)}
     <h3>Spielfrei (${free.length})</h3><p>${free.map(id => esc(ename(T, id)) + ` <small class="muted">(${esc(lab(id))})</small>`).join(', ') || '–'}</p>`;
+}
+// Vorschau: Hilfsliste der nächsten Stufe, sobald die laufende Stufe fertig ist, aber noch vor dem Auslosen
+function qPreview(T, ph) {
+  if (ph.stage !== maxStage(T)) return '';
+  const st = qStatus(T); if (st.state !== 'next') return '';
+  const lab = qLabel(T);
+  if (st.action === 'qcad') {
+    const list = qCadList(T), inCad = new Set(list), free = [...qInfo(T, qPhase(T)).keys()].filter(id => !inCad.has(id));
+    return `<section class="card"><h2>Hilfsliste Cadrage <small class="muted">· noch nicht ausgelost</small></h2>${qList(T, list, lab)}<p class="note">So wird die Cadrage ausgelost: Erster der Liste gegen Letzten, Zweiter gegen Vorletzten usw. Treffen zwei Teams aus demselben Poule aufeinander, wird der Gegner getauscht.</p><h3>Spielfrei (${free.length})</h3><p>${free.map(id => esc(ename(T, id)) + ` <small class="muted">(${esc(lab(id))})</small>`).join(', ') || '–'}</p></section>`;
+  }
+  if (st.action === 'qko' && !qPhase(T, 'qko')) return `<section class="card"><h2>Hilfsliste K.O.-Runde 1 <small class="muted">· noch nicht ausgelost</small></h2>${qList(T, qkoList(T), lab)}<p class="note">So wird die K.O.-Runde 1 ausgelost: Erster der Liste gegen Letzten, Zweiter gegen Vorletzten usw. Treffen zwei Teams aus demselben Poule aufeinander, wird der Gegner getauscht.</p></section>`;
+  return '';
 }
 function qKoTable(T, ph) {
   const ms = phaseMatches(T, ph), rounds = [...new Set(ms.map(m => m.round))].sort((a, b) => a - b);
