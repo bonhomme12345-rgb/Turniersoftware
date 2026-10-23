@@ -102,6 +102,8 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .m-a,.m-b{min-width:0;overflow-wrap:anywhere}
 .m-a small,.m-b small{display:block;font-size:.76rem}
 .win{font-weight:700}
+.qwin,.qwin strong{color:var(--qwin)}
+:root{--qwin:#b4530a}:root[data-theme="dark"]{--qwin:#f6a54a}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--qwin:#f6a54a}}
 .m-sc{display:flex;gap:5px;align-items:center;font-weight:700}
 input.sc{width:50px;height:40px;text-align:center;padding:6px 2px;border:1px solid var(--input-border);border-radius:12px;background:var(--input-bg);font-size:1.05rem;font-weight:700;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
 input.sc::-webkit-outer-spin-button,input.sc::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -148,6 +150,7 @@ tr.off td{opacity:.5;text-decoration:line-through}
 @media print{
   @page{margin:12mm}
   body{background:#fff;color:#000;font-size:11pt}
+  :root{--qwin:#b4530a !important}
   header.top,nav.tabs,main,#toast,#modal{display:none!important}
   body{background:#fff!important;background-image:none!important}
   #print h1,#print h2{font-family:var(--display)}
@@ -1101,14 +1104,14 @@ function phaseTable(T, ph) {
 const qCell = (T, id) => (id === BYE ? '<span class="muted">—</span>' : id ? `<strong>${esc(ename(T, id))}</strong>` : '');
 function qPlanTable(T, ph) {
   return `<div class="tblwrap"><table><thead><tr><th class="n">Poule</th><th>Bahnen</th><th>Reihe 1</th><th>Reihe 2</th><th>Reihe 3</th><th>Reihe 4</th><th>Erster</th><th>Zweiter</th></tr></thead><tbody>${ph.pools.map(x => { const r = qRes(T, ph, x);
-    return `<tr><td class="n">${x.no}${x.three ? '<br><small class="muted">3er</small>' : ''}</td><td>${x.courts ? x.courts.join(' + ') : '–'}</td>${x.rows.map(id => `<td>${qCell(T, id)}</td>`).join('')}<td>${qCell(T, r.first)}</td><td>${qCell(T, r.second)}</td></tr>`; }).join('')}</tbody></table></div>`;
+    return `<tr><td class="n">${x.no}${x.three ? '<br><small class="muted">3er</small>' : ''}</td><td>${x.courts ? x.courts.join(' + ') : '–'}</td>${x.rows.map(id => `<td>${qCell(T, id)}</td>`).join('')}<td class="qwin">${qCell(T, r.first)}</td><td class="qwin">${qCell(T, r.second)}</td></tr>`; }).join('')}</tbody></table></div>`;
 }
 function qLabel(T) {
   const pp = qPhase(T), info = qInfo(T, pp), cp = qPhase(T, 'qcad'), cw = new Map();
   if (cp) phaseMatches(T, cp).forEach(m => { if (real(winner(m))) cw.set(winner(m), `Cadrage ${m.cno}${m.star ? '*' : ''}`); });
   return id => { const i = info.get(id); return (i ? `Poule ${i.pool}, ${i.place === 1 ? 'Erster' : 'Zweiter'}${i.three ? ' (3er)' : ''}` : '') + (cw.has(id) ? ' · Sieger ' + cw.get(id) : ''); };
 }
-const qGames = (T, ms, tag) => `<div class="tblwrap"><table><thead><tr><th>Spiel</th><th></th><th class="n">${who(T)}</th><th class="n">Ergebnis</th><th>${who(T)}</th></tr></thead><tbody>${ms.map(m => `<tr><td>${m.no}</td><td>${esc(tag(m))}</td><td class="n">${esc(sideText(T, m, 'a'))}</td><td class="n">${played(m) ? m.sa + ' : ' + m.sb : m.court ? 'Bahn ' + m.court : ''}</td><td>${esc(sideText(T, m, 'b'))}</td></tr>`).join('')}</tbody></table></div>`;
+const qGames = (T, ms, tag) => `<div class="tblwrap"><table><thead><tr><th>Spiel</th><th></th><th class="n">${who(T)}</th><th class="n">Ergebnis</th><th>${who(T)}</th></tr></thead><tbody>${ms.map(m => `<tr><td>${m.no}</td><td>${esc(tag(m))}</td><td class="n${played(m) && m.sa > m.sb ? ' qwin win' : ''}">${esc(sideText(T, m, 'a'))}</td><td class="n">${played(m) ? m.sa + ' : ' + m.sb : m.court ? 'Bahn ' + m.court : ''}</td><td class="${played(m) && m.sb > m.sa ? 'qwin win' : ''}">${esc(sideText(T, m, 'b'))}</td></tr>`).join('')}</tbody></table></div>`;
 const qList = (T, list, lab) => `<div class="tblwrap"><table><thead><tr><th class="n">Nr.</th><th>${who(T)}</th><th>Herkunft</th></tr></thead><tbody>${list.map((id, i) => `<tr><td class="n">${i + 1}</td><td>${qCell(T, id)}</td><td class="muted">${esc(lab(id))}</td></tr>`).join('')}</tbody></table></div>`;
 function qCadTable(T, ph) {
   const lab = qLabel(T), inCad = new Set(ph.list), free = [...qInfo(T, qPhase(T)).keys()].filter(id => !inCad.has(id));
@@ -1249,7 +1252,7 @@ function htmlBlocks(html) {
   const root = document.createElement('div'), out = []; root.innerHTML = html;
   const cellOf = c => { const k = c.cloneNode(true), sub = [...k.querySelectorAll('small')].map(x => x.textContent.trim()).filter(Boolean).join(' · ');
     k.querySelectorAll('small,button').forEach(x => x.remove());
-    return { main: k.textContent.replace(/\s+/g, ' ').trim(), sub, head: c.tagName === 'TH', n: c.classList.contains('n'), bold: !!k.querySelector('strong,b') || c.classList.contains('win') }; };
+    return { main: k.textContent.replace(/\s+/g, ' ').trim(), sub, head: c.tagName === 'TH', n: c.classList.contains('n'), bold: !!k.querySelector('strong,b') || c.classList.contains('win'), qwin: c.classList.contains('qwin') }; };
   const walk = el => { for (const c of el.children) {
     const t = c.tagName, txt = () => c.textContent.replace(/\s+/g, ' ').trim();
     if (t === 'BUTTON' || t === 'INPUT') continue;
@@ -1291,7 +1294,7 @@ function canvasFromHtml(html) {
             const w = b.w[i] || 0, avail = w - 2 * CP, f = cf(c), t0 = c.head ? c.main.toUpperCase() : c.main;
             const main = fit(t0, f, avail), m = mw(main, f), rest = avail - m - 8, sub = c.sub && rest + 1 >= Math.min(mw(c.sub, sf), 24) ? fit(c.sub, sf, rest + 1) : '';
             const total = m + (sub ? 8 + mw(sub, sf) : 0), x0 = c.n ? x + w - CP - total : x + CP;
-            text(main, f, c.head ? '#555' : '#1d1b18', x0, y + h / 2);
+            text(main, f, c.head ? '#555' : c.qwin ? '#b4530a' : '#1d1b18', x0, y + h / 2);
             if (sub) text(sub, sf, '#777', x0 + m + 8, y + h / 2 + 1);
             x += w;
           });
