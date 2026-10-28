@@ -152,7 +152,7 @@ tr.off td{opacity:.5;text-decoration:line-through}
   input.sc{width:42px}
 }
 @media print{
-  @page{margin:12mm}
+  @page{size:A4 landscape;margin:12mm}
   body{background:#fff;color:#000;font-size:11pt}
   :root{--qwin:#b4530a !important}
   header.top,nav.tabs,main,#toast,#modal{display:none!important}
@@ -1235,7 +1235,7 @@ function vDaten(T) {
   ${UI.storageOk ? '' : '<div class="statusbar next"><div><strong>Automatisches Speichern ist in diesem Browserfenster nicht möglich.</strong><span>Turniere und Spieler gehen beim Schließen verloren. Die Spielerdatenbank bitte unten über „Als Datei sichern“ sichern.</span></div></div>'}
   <section class="card"><h2>Spielerdatenbank – ${pdb().length} Spieler</h2>
     <p class="muted">Jeder gemeldete Spieler wird hier gespeichert. Beim nächsten Turnier erscheint er schon beim Eintippen von Vor- oder Nachname als Vorschlag – Auswahl mit Klick, Pfeiltasten und Enter. Die Daten bleiben nur auf diesem Gerät; zum Übertragen auf ein anderes Gerät die Datenbank als Datei sichern und dort laden.</p>
-    <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><label class="btn">Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-exp">Als Datei sichern</button><button class="btn" data-act="pdb-xlsx">Als Excel-Datei</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
+    <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><label class="btn">Aus Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-exp">Als Datei sichern</button><button class="btn" data-act="pdb-xlsx">Als Excel-Datei</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
     ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
   </section>
   <section class="card"><h2>Endstand exportieren</h2><p class="muted">Druckt den ${T.system === 'quali' ? 'Endstand (Ergebnisliste)' : 'Endstand'} oder speichert ihn als Bild, als PDF-Datei oder als Excel-Datei.</p>
@@ -1261,8 +1261,8 @@ function selMatches(T) {
 }
 function printDoc(T, doc) {
   if (doc === 'baum') {
-    const cv = bracketCanvas(T, bracketPhase(T)), wide = cv.width > cv.height;
-    $('#print').innerHTML = `<style>@page{size:A4 ${wide ? 'landscape' : 'portrait'}}</style><img class="baum" style="max-height:${wide ? 182 : 268}mm" alt="Turnierbaum">`;
+    const cv = bracketCanvas(T, bracketPhase(T));
+    $('#print').innerHTML = `<img class="baum" style="max-height:182mm" alt="Turnierbaum">`; // A4 quer wie alle Ausdrucke
     const img = $('#print img'); img.onload = () => setTimeout(() => window.print(), 50); img.src = cv.toDataURL('image/png'); return;
   }
   $('#print').innerHTML = docHtml(T, doc); setTimeout(() => window.print(), 50);
@@ -1358,9 +1358,10 @@ function canvasFromHtml(html) {
 }
 const saveCanvas = (cv, name) => cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
 const jpegFromHtml = (html, name) => saveCanvas(canvasFromHtml(html).cv, name);
-// PDF-Datei (A4 hoch) aus dem Bild: lange Listen werden zwischen zwei Zeilen auf mehrere Seiten verteilt
+// PDF-Datei (A4 quer) aus dem Bild: lange Listen werden zwischen zwei Zeilen auf mehrere Seiten verteilt;
+// die Tabelle behält die Breite einer Hochformat-Seite und steht mittig, damit die Schrift nicht übergroß wird
 function pdfFromCanvas(cv, breaks, name) {
-  const PW = 595.28, PH = 841.89, M = 28, k = (PW - 2 * M) / cv.width, maxH = Math.floor((PH - 2 * M) / k), cuts = [0];
+  const PW = 841.89, PH = 595.28, M = 28, k = (595.28 - 2 * M) / cv.width, X = ((PW - cv.width * k) / 2).toFixed(2), maxH = Math.floor((PH - 2 * M) / k), cuts = [0];
   while (cv.height - cuts[cuts.length - 1] > maxH) { const last = cuts[cuts.length - 1]; cuts.push(breaks.filter(b => b > last + maxH / 3 && b <= last + maxH).pop() || last + maxH); }
   cuts.push(cv.height);
   const parts = [], xref = []; let off = 0;
@@ -1374,7 +1375,7 @@ function pdfFromCanvas(cv, breaks, name) {
     const pc = document.createElement('canvas'); pc.width = cv.width; pc.height = h; const c = pc.getContext('2d');
     c.fillStyle = '#fff'; c.fillRect(0, 0, pc.width, h); c.drawImage(cv, 0, y0, cv.width, h, 0, 0, cv.width, h);
     const bin = atob(pc.toDataURL('image/jpeg', 0.92).split(',')[1]), img = new Uint8Array(bin.length); for (let j = 0; j < bin.length; j++) img[j] = bin.charCodeAt(j);
-    const n = 3 + 3 * i, w = (PW - 2 * M).toFixed(2), hh = (h * k).toFixed(2), cs = `q ${w} 0 0 ${hh} ${M} ${(PH - M - h * k).toFixed(2)} cm /Im0 Do Q`;
+    const n = 3 + 3 * i, w = (cv.width * k).toFixed(2), hh = (h * k).toFixed(2), cs = `q ${w} 0 0 ${hh} ${X} ${(PH - M - h * k).toFixed(2)} cm /Im0 Do Q`;
     obj(n, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 ${n + 2} 0 R >> >> /Contents ${n + 1} 0 R >>`);
     obj(n + 1, `<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
     obj(n + 2, `<< /Type /XObject /Subtype /Image /Width ${pc.width} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.length} >>\nstream\n`, img, '\nendstream');

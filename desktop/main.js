@@ -20,7 +20,7 @@ function createWindow() {
 }
 
 Menu.setApplicationMenu(Menu.buildFromTemplate([
-  { label: 'Datei', submenu: [{ label: 'Drucken…', accelerator: 'CmdOrCtrl+P', click: () => win.webContents.print() }, { type: 'separator' }, { label: 'Beenden', role: 'quit' }] },
+  { label: 'Datei', submenu: [{ label: 'Drucken…', accelerator: 'CmdOrCtrl+P', click: () => win.webContents.print({ landscape: true, pageSize: 'A4' }) }, { type: 'separator' }, { label: 'Beenden', role: 'quit' }] },
   { label: 'Ansicht', submenu: [{ label: 'Neu laden', role: 'reload' }, { label: 'Vollbild', role: 'togglefullscreen' }, { type: 'separator' }, { label: 'Größer', role: 'zoomIn' }, { label: 'Kleiner', role: 'zoomOut' }, { label: 'Normalgröße', role: 'resetZoom' }] }
 ]));
 
