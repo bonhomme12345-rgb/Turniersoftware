@@ -446,29 +446,24 @@ function drawSwiss(T, ph) {
   }
   // Ab Runde 2: im Topf 1. gegen 2., 3. gegen 4. usw.; haben zwei schon
   // gegeneinander gespielt, spielt der Höhere gegen den Nächstplatzierten, gegen den er noch nicht gespielt hat.
-  const pairPot = L => matchStrict(L, forb);
-  const done = [], up = new Set(); let repeat = false, forced = false;
+  // Lässt sich ein Topf gar nicht ohne Wiederholung paaren, wird trotzdem im Topf gepaart: Jeder nimmt den
+  // Nächstplatzierten, gegen den er noch nicht gespielt hat, und wenn es keinen mehr gibt, den Nächstplatzierten.
+  const pairAnyway = L => { const rest = L.slice(), res = []; while (rest.length > 1) { const a = rest.shift(); let i = rest.findIndex(b => !forb.has(pkey(a, b))); if (i < 0) i = 0; res.push([a, rest.splice(i, 1)[0]]); } return res; };
+  const done = [], up = new Set(); let repeat = false;
   for (let k = 0; k < pots.length; k++) {
-    let L = pots[k]; if (!L.length) continue;
+    const L = pots[k]; if (!L.length) continue;
     if (L.length % 2) { // hochspielen: der Bestplatzierte des nächsten Topfes rückt ans Ende dieses Topfes
       let j = k + 1; while (j < pots.length && !pots[j].length) j++;
       if (j < pots.length) { const x = pots[j].shift(); L.push(x); up.add(x); }
     }
-    let res = L.length % 2 ? null : pairPot(L);
-    if (res) { done.push({ L, res }); continue; }
-    let j = k + 1; while (j < pots.length && !pots[j].length) j++;
-    if (j < pots.length) { pots[j].forEach(x => up.delete(x)); L.forEach(x => up.delete(x)); pots[j] = L.concat(pots[j]); pots[k] = []; forced = true; continue; }
-    // Letzter Topf nicht lösbar: schrittweise mit den Töpfen darüber zusammenlegen, die oberen Töpfe bleiben unverändert
-    forced = true;
-    while (!res && done.length) { L = done.pop().L.concat(L); res = pairPot(L); }
-    L.forEach(x => up.delete(x));
-    if (!res) { repeat = true; res = []; for (let i = 0; i + 1 < L.length; i += 2) res.push([L[i], L[i + 1]]); } // Wiederholung unvermeidbar
+    let res = matchStrict(L, forb);
+    if (!res) { repeat = true; res = pairAnyway(L); } // Wiederholung unvermeidbar
     done.push({ L, res });
   }
   const finalPairs = done.flatMap(d => d.res);
   finalPairs.forEach(([a, b], i) => addMatch(T, ph, Object.assign({ round: r, pos: i, a, b }, up.has(a) ? { up: a } : up.has(b) ? { up: b } : {})));
   if (bye) { const [f, a] = byeScore(T); addMatch(T, ph, { round: r, pos: finalPairs.length, a: bye, b: BYE, bye: true, sa: f, sb: a }); }
-  ph.round = r; ph.repeat = repeat ? r : (ph.repeat || 0); ph.forced = forced ? r : (ph.forced || 0);
+  ph.round = r; ph.repeat = repeat ? r : (ph.repeat || 0);
 }
 
 /* ---------- Supermêlée ---------- */
@@ -1079,11 +1074,10 @@ function vSpiele(T) {
     const list = phaseMatches(T, p).filter(m => m.round === r), vis = list.filter(m => m.auto !== BYE), done = vis.filter(m => played(m) || m.auto).length, locked = p.stage < maxStage(T);
     return `<div class="rhead"><span>${all && T.phases.length > 1 ? esc(p.title) + ' · ' : ''}${esc(roundTitle(T, p, r))}</span><small class="muted">${done} von ${vis.length} erledigt</small></div>` + list.map(m => matchRow(T, p, m, locked || ((p.type === 'pre' || p.type === 'qko') && p.round > m.round))).join('');
   }).join('') || '<div class="card empty">In dieser Auswahl gibt es keine Spiele.</div>';
-  const rpt = !all && ph.type === 'swiss' && ph.repeat && (UI.round === ph.repeat) ? '<p class="note">In dieser Runde ließ sich eine Wiederholung nicht vermeiden – jede andere Paarung hätte ebenfalls eine bereits gespielte Begegnung enthalten.</p>' : '';
-  const frc = !all && !rpt && ph.type === 'swiss' && ph.forced && (UI.round === ph.forced) ? '<p class="note">In dieser Runde wurden Töpfe zusammengelegt, weil sonst eine Begegnung doppelt gewesen wäre.</p>' : '';
+  const rpt = !all && ph.type === 'swiss' && ph.repeat && (UI.round === ph.repeat) ? '<p class="note">In dieser Runde ließ sich eine Wiederholung nicht vermeiden: Ein Topf ließ sich nicht ohne bereits gespielte Begegnung paaren.</p>' : '';
   const lockNote = !all && ph.stage < maxStage(T) ? '<p class="note">Diese Phase ist abgeschlossen. Ergebnisse lassen sich nur ändern, wenn die letzte Auslosung zurückgenommen wird.</p>' : '';
   const q22 = phs.some(p => p.type === 'poule' || p.type === 'qcad') && !lockNote ? '<p class="note">Poule und Cadrage beginnen mit dem Punktestand 2:2. Eingetragen wird das Endergebnis.</p>' : '';
-  return bar + pp + rp + rpt + frc + lockNote + q22 + body;
+  return bar + pp + rp + rpt + lockNote + q22 + body;
 }
 
 function stTable(T, ph) {
