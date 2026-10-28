@@ -1092,8 +1092,8 @@ function vSpiele(T) {
   return bar + pp + rp + rpt + lockNote + q22 + body;
 }
 
-function stTable(T, ph) {
-  const rows = standings(T, ph), sw = ph.type === 'swiss';
+function stTable(T, ph, only) {
+  const rows = standings(T, ph).filter(r => !only || only.has(r.id)), sw = ph.type === 'swiss';
   const cols = sw ? [['S', 'w'], ['N', 'l'], ['BH', 'bh'], ['FBH', 'fbh'], ['+/−', 'diff']] : [['S', 'w'], ['N', 'l'], ['+/−', 'diff']];
   return `<div class="tblwrap"><table><thead><tr><th class="n">Pl.</th><th class="n">Nr.</th><th>${who(T)}</th><th class="n">Sp.</th>${cols.map(c => `<th class="n">${c[0]}</th>`).join('')}<th class="n">Punkte</th></tr></thead><tbody>${rows.map(r => {
     const e = entry(T, r.id) || {};
@@ -1187,7 +1187,14 @@ function vBaum(T) {
   if (!br.length) return `<div class="card empty">${T.started && HAS_FINALS[T.system] ? 'Der Turnierbaum erscheint, sobald die K.O.-Runde ausgelost ist.' : T.started ? 'Dieses Turniersystem hat keinen Turnierbaum.' : 'Der Turnierbaum erscheint nach dem Start eines Turniers mit K.O.-Phase.'}</div>`;
   if (!br.some(p => p.id === UI.bphase)) UI.bphase = br[0].id;
   const ph = br.find(p => p.id === UI.bphase);
-  return (br.length > 1 ? `<div class="pills">${br.map(p => `<button class="pill ${p.id === ph.id ? 'on' : ''}" data-act="bphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}</div>` : '') + `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)}</h2><span class="row"><button class="btn sm" data-act="print" data-doc="baum" title="Diesen Turnierbaum drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="baum" title="Diesen Turnierbaum als Bilddatei herunterladen">Als Bild (JPEG)</button></span></div>${bracketHtml(T, ph)}</section>`;
+  return (br.length > 1 ? `<div class="pills">${br.map(p => `<button class="pill ${p.id === ph.id ? 'on' : ''}" data-act="bphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}</div>` : '') + `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">${esc(ph.title)}</h2><span class="row"><button class="btn sm" data-act="print" data-doc="baum" title="Diesen Turnierbaum drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="baum" title="Diesen Turnierbaum als Bilddatei herunterladen">Als Bild (JPEG)</button></span></div>${bracketHtml(T, ph)}</section>${baumSource(T, ph)}`;
+}
+// Maastrichter: unter dem Baum der Ausschnitt der Vorrunden-Tabelle, aus dem dieses K.O.-Turnier gebildet wurde
+function baumSource(T, ph) {
+  const pre = T.system === 'maas' && T.phases.find(p => p.stage === 1 && p.type === 'swiss');
+  if (!pre || !ph.ids || !ph.ids.length) return '';
+  const only = new Set(ph.ids), pl = standings(T, pre).filter(r => only.has(r.id)).map(r => r.place);
+  return `<section class="card"><h2>Vorrunden-Tabelle${pl.length ? ` – Plätze ${Math.min(...pl)} bis ${Math.max(...pl)}` : ''}</h2><p class="muted" style="margin-top:0">Aus diesen Teams wurde das ${esc(ph.title)} gebildet. Gesetzt wird nach dieser Reihenfolge, Freilose bekommen die Bestplatzierten.</p>${stTable(T, pre, only)}</section>`;
 }
 
 function pdbRows(q) {
