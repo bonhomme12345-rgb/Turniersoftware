@@ -1017,7 +1017,6 @@ function vTurnier(T) {
     ${T.entries.length && !T.started && !isMelee(T) ? `<p class="note" style="margin-bottom:0">Die Formation bleibt ${esc(FORM[T.formation])}, solange ${who(T, true)} gemeldet sind. Zum Ändern zuerst die Meldeliste leeren.</p>` : ''}</section>
   <section class="card"><h2>Turniersystem</h2>
     <div class="sys">${Object.keys(SYSTEMS).map(k => { const off = k === 'melee' && hasTeams; return `<label class="${T.system === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="Nicht wählbar, solange 2er- oder 3er-Teams gemeldet sind"' : ''}><input type="radio" name="sys" data-sys="${k}" ${T.system === k ? 'checked' : ''} ${dis || (off ? 'disabled' : '')}>${k === 'maas' ? 'Maastr.-System ≤ 64 Teams' : k === 'ko' ? 'ACBD-K.O. ≥ 64 Teams' : SYSTEMS[k].name}</label>`; }).join('')}</div>
-    ${hasTeams && !T.started && !isMelee(T) ? '<p class="note">Supermêlée ist nicht wählbar, solange 2er- oder 3er-Teams in der Meldeliste stehen. Dafür bitte zuerst die Meldeliste leeren.</p>' : ''}
     <div class="note">${esc(S.desc)}</div>${hint ? `<div class="note calc">${esc(hint.trim())}</div>` : ''}
     <div class="grid" style="margin-top:14px">${S.opts.filter(k => optHtml[k]).map(k => optHtml[k]()).join('')}</div>
     <div style="margin-top:8px">${S.opts.filter(k => chkHtml[k]).map(k => chkHtml[k]()).join('')}</div>
@@ -1025,7 +1024,7 @@ function vTurnier(T) {
   <section class="card">${T.started
     ? `<h2>Turnier läuft</h2><p class="muted">System und Rundenzahl sind gesperrt, solange das Turnier läuft. Die Bahnanzahl lässt sich jederzeit ändern${T.system === 'maas' && !disF ? ', die Einteilung der K.O.-Turniere bis zur Auslosung der K.O.-Runde' : ''}.</p><div class="row"><button class="btn primary" data-act="tab" data-tab="spiele">Zu den Spielen</button><button class="btn danger" data-act="reset">Auslosung verwerfen und neu aufsetzen</button></div>`
     : `<h2>Start</h2><p class="muted">${n} ${who(T, true)} gemeldet.${err ? ' ' + esc(err) : ' Bereit zur Auslosung.'}</p><div class="row"><button class="btn primary" data-act="start">Turnier starten und auslosen</button><button class="btn" data-act="tab" data-tab="teilnehmer">${who(T, true)} verwalten</button></div>`}
-  </section>`;
+  </section>${hasTeams && !T.started && !isMelee(T) ? '<section class="card"><h2>Infobox</h2><p class="muted" style="margin:0">Supermêlée ist nicht wählbar, solange 2er- oder 3er-Teams in der Meldeliste stehen. Dafür bitte zuerst die Meldeliste leeren.</p></section>' : ''}`;
 }
 
 // Spieler eines Eintrags; ältere Einträge ohne Einzelangaben werden aus Teamname/Spielerliste abgeleitet
