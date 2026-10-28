@@ -976,7 +976,7 @@ function vTurnier(T) {
   if (T.system === 'ko' && n >= S.min) {
     const pl = koPlan(n), fl = k => `${k} ${k === 1 ? 'Freilos' : 'Freilose'}`, by = pl.byes[0] + pl.byes[1];
     const cad = pl.fields.map((f, i) => (f.cadrage ? `${'ABCD'[i]}: ${f.cadrage} ${f.cadrage === 1 ? 'Spiel' : 'Spiele'} auf ${f.target} Teams (${fl(f.direct)})` : '')).filter(Boolean);
-    hint = ` Bei ${n} Teams nach zwei Runden: ${pl.sizes.map((x, i) => 'ABCD'[i] + ' = ' + x).join(', ')}.` + (cad.length ? ` Cadrage danach – ${cad.join(', ')}.` : ' Keine Cadrage nötig.') + (by ? ` Wegen ungerader Zahlen gibt es in Runde 1 und 2 ${fl(by)}.` : ' In Runde 1 und 2 gibt es keine Freilose.');
+    hint = ` Bei ${n} Teams nach zwei Runden: ${pl.sizes.map((x, i) => 'ABCD'[i] + ' = ' + x).join(', ')}.` + (cad.length ? ` Cadrage danach – ${cad.join(', ')}.` : ' Keine Cadrage nötig.') + (by ? ` Wegen ungerader Teamzahl: ${pl.byes.map((k, i) => (k ? `${fl(k)} in Runde ${i + 1}` : '')).filter(Boolean).join(', ')}.` : ' In Runde 1 und 2 gibt es keine Freilose.');
   }
   if (T.system === 'maas' && n >= 4) {
     const P = o.field | 0 || 16, pl = finalsPlan(n, P), txt = pl.map((x, c) => { let N = 2; while (N < x) N *= 2; return `${pl.length === 1 ? 'ein Feld' : 'ABCD'[c]} = ${x}` + (N > x ? (finalsByes(x) ? ` (${koRoundName(N)} mit ${N - x} ${N - x === 1 ? 'Freilos' : 'Freilosen'})` : ` (Cadrage: ${x - N / 2} ${x - N / 2 === 1 ? 'Spiel' : 'Spiele'}, ${N - x} ${N - x === 1 ? 'Freilos' : 'Freilose'})`) : ''); });
