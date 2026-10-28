@@ -989,8 +989,7 @@ function vTurnier(T) {
   let hint = '';
   if (T.system === 'melee' && n >= 4) hint = ' ' + meleeHint(n);
   if (T.system === 'swiss' && n >= 2) hint = ` Bei ${n} Teams ergeben ${Math.ceil(Math.log2(n))} Runden rechnerisch genau ein ungeschlagenes Team.`;
-  if (T.system === 'ko' && n < S.min) hint = ` Bei ${n} Teams wird kein ACBD-K.O. gespielt (mindestens ${S.min} Teams), bitte „Maastrichter System“ wählen.`;
-  else if (T.system === 'ko' && n >= S.min) {
+  if (T.system === 'ko' && n >= S.min) {
     const pl = koPlan(n), fl = k => `${k} ${k === 1 ? 'Freilos' : 'Freilose'}`, by = pl.byes[0] + pl.byes[1];
     const cad = pl.fields.map((f, i) => (f.cadrage ? `${'ABCD'[i]}: ${f.cadrage} ${f.cadrage === 1 ? 'Spiel' : 'Spiele'} auf ${f.target} Teams (${fl(f.direct)})` : '')).filter(Boolean);
     hint = ` Bei ${n} Teams nach zwei Runden: ${pl.sizes.map((x, i) => 'ABCD'[i] + ' = ' + x).join(', ')}.` + (cad.length ? ` Cadrage danach – ${cad.join(', ')}.` : ' Keine Cadrage nötig.') + (by ? ` Wegen ungerader Teamzahl: ${pl.byes.map((k, i) => (k ? `${fl(k)} in Runde ${i + 1}` : '')).filter(Boolean).join(', ')}.` : ' In Runde 1 und 2 gibt es keine Freilose.');
