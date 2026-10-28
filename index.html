@@ -1056,8 +1056,7 @@ function vTeilnehmer(T) {
   </section>
   ${canAdd && !late ? `<section class="card"><h2>Meldeliste importieren</h2>
     <p class="muted">Die Einschreibungsliste des Verbands (.xlsx oder .xls) lässt sich direkt laden. Übernommen werden je Spieler Name, Vorname und Verein (Spalten <code>${imp}</code>). Alle anderen Spalten wie Teamnummer, Lizenznummer oder Spieler-ID werden ignoriert, die Teamnummern vergibt das Programm.${T.system === 'quali' ? ' Steht in der Liste eine Setzposition, wird die Meldeliste danach sortiert.' : ''} Für eigene Listen gibt es die Excel-Vorlage im selben Aufbau.</p>
-    <div class="row"><label class="btn primary">Excel-Datei wählen<input type="file" id="imp-file" accept=".xlsx,.xlsm,.xls,.csv,.txt" hidden></label><button class="btn" data-act="imp-tpl">Excel-Vorlage herunterladen</button>
-    <span class="muted" style="margin-left:auto">Zum Ausprobieren:</span><input class="inp" id="demo-n" type="number" min="2" max="128" value="16" style="width:76px"><button class="btn" data-act="demo">Testeinträge erzeugen</button></div></section>` : ''}`;
+    <div class="row"><label class="btn primary">Excel-Datei wählen<input type="file" id="imp-file" accept=".xlsx,.xlsm,.xls,.csv,.txt" hidden></label><button class="btn" data-act="imp-tpl">Excel-Vorlage herunterladen</button></div></section>` : ''}`;
 }
 
 function matchRow(T, ph, m, locked) {
@@ -1216,7 +1215,7 @@ function baumSource(T, ph) {
   const pre = T.system === 'maas' && T.phases.find(p => p.stage === 1 && p.type === 'swiss');
   if (!pre || !ph.ids || !ph.ids.length) return '';
   const only = new Set(ph.ids), pl = standings(T, pre).filter(r => only.has(r.id)).map(r => r.place);
-  return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Vorrunden-Tabelle${pl.length ? ` – Plätze ${Math.min(...pl)} bis ${Math.max(...pl)}` : ''}</h2><span class="row"><button class="btn sm" data-act="print" data-doc="vorrunde" title="Diesen Ausschnitt der Vorrunden-Tabelle drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="vorrunde" title="Diesen Ausschnitt als Bilddatei herunterladen">Als Bild (JPEG)</button><button class="btn sm" data-act="pdf" data-doc="vorrunde" title="Diesen Ausschnitt als PDF-Datei (A4 quer) herunterladen">Als PDF</button></span></div><p class="muted" style="margin-top:0">Aus diesen Teams wurde das ${esc(ph.title)} gebildet. Gesetzt wird nach dieser Reihenfolge, Freilose bekommen die Bestplatzierten.</p>${stTable(T, pre, only)}</section>`;
+  return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Vorrunden-Tabelle${pl.length ? ` – Plätze ${Math.min(...pl)} bis ${Math.max(...pl)}` : ''}</h2><span class="row"><button class="btn sm" data-act="print" data-doc="vorrunde" title="Diesen Ausschnitt der Vorrunden-Tabelle drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="vorrunde" title="Diesen Ausschnitt als Bilddatei herunterladen">Als Bild (JPEG)</button></span></div><p class="muted" style="margin-top:0">Aus diesen Teams wurde das ${esc(ph.title)} gebildet. Gesetzt wird nach dieser Reihenfolge, Freilose bekommen die Bestplatzierten.</p>${stTable(T, pre, only)}</section>`;
 }
 
 function pdbRows(q) {
@@ -1241,7 +1240,8 @@ function vDaten(T) {
   </section>
   ${T.system === 'quali' ? `<section class="card"><h2>Quali-Unterlagen</h2><p class="muted">Turnierplan mit allen Poules und ein Laufzettel je Poule (wird dem Team aus Reihe 1 ausgehändigt).</p>
     <div class="row"><button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan drucken</button><button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan als Bild (JPEG)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel drucken</button></div></section>` : ''}
-  <section class="card"><h2>Testlauf</h2><p class="muted">Nur zum Ausprobieren: Trägt in alle offenen Spiele des geöffneten Turniers, deren Gegner feststehen, ein Zufallsergebnis ein. Die nächste Runde wird danach wie gewohnt unter „Spiele“ ausgelost.</p>
+  <section class="card"><h2>Testlauf</h2><p class="muted">Nur zum Ausprobieren: „Testeinträge erzeugen“ füllt die Meldeliste des geöffneten Turniers mit erfundenen ${who(T, true)}. „Test: alle Ergebnisse eintragen“ trägt in alle offenen Spiele, deren Gegner feststehen, ein Zufallsergebnis ein. Die nächste Runde wird danach wie gewohnt unter „Spiele“ ausgelost.</p>
+    <div class="row" style="margin-bottom:10px"><input class="inp" id="demo-n" type="number" min="2" max="128" value="16" style="width:76px" ${!T.started || isMelee(T) ? '' : 'disabled'}><button class="btn" data-act="demo" ${!T.started || isMelee(T) ? '' : 'disabled'}>Testeinträge erzeugen</button></div>
     <div class="row"><button class="btn test" data-act="rnd" ${T.started && status(T).state === 'play' ? '' : 'disabled'} title="Trägt in alle offenen Spiele mit feststehenden Gegnern ein Zufallsergebnis ein">Test: alle Ergebnisse eintragen</button></div></section>
   <section class="card"><h2>Turniere auf diesem Gerät</h2>
     <div class="tblwrap"><table><tbody>${DB.tournaments.map(t => `<tr><td><strong>${esc(t.name)}</strong> <small>${esc(t.date)} · ${esc(SYSTEMS[t.system].name)} · ${t.entries.length} Meldungen</small></td><td class="n"><span class="row" style="justify-content:flex-end">${t.id === T.id ? '<span class="tag">geöffnet</span>' : `<button class="btn sm" data-act="t-open" data-id="${t.id}">Öffnen</button>`}<button class="btn sm" data-act="t-copy" data-id="${t.id}">Meldeliste kopieren</button><button class="btn sm danger" data-act="t-del" data-id="${t.id}">Löschen</button></span></td></tr>`).join('')}</tbody></table></div>
@@ -1724,7 +1724,7 @@ const ACT = {
   demo: () => {
     const T = cur(), n = Math.max(1, Math.min(128, +$('#demo-n').value || 0)), k = teamSize(T);
     for (let i = 0; i < n; i++) addEntry(T, { members: demoMembers(T, k) }).demo = true;
-    save(); render();
+    save(); render(); toast(`${n} Testeinträge erzeugt – jetzt ${T.entries.length} ${who(T, true)} in der Meldeliste.`);
   },
   print: el => printDoc(cur(), el.dataset.doc),
   jpg: el => saveJpeg(cur(), el.dataset.doc),
