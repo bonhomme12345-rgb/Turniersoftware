@@ -1013,7 +1013,7 @@ function vTurnier(T) {
   </div>
     ${T.entries.length && !T.started && !isMelee(T) ? `<p class="note" style="margin-bottom:0">Die Formation bleibt ${esc(FORM[T.formation])}, solange ${who(T, true)} gemeldet sind. Zum Ändern zuerst die Meldeliste leeren.</p>` : ''}</section>
   <section class="card"><h2>Turniersystem</h2>
-    <div class="sys">${Object.keys(SYSTEMS).map(k => { const off = k === 'melee' && hasTeams; return `<label class="${T.system === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="Nicht wählbar, solange 2er- oder 3er-Teams gemeldet sind"' : ''}><input type="radio" name="sys" data-sys="${k}" ${T.system === k ? 'checked' : ''} ${dis || (off ? 'disabled' : '')}>${SYSTEMS[k].name}${k === 'maas' ? ' ≤ 64 Teams' : k === 'ko' ? ' ≥ 64 Teams' : ''}</label>`; }).join('')}</div>
+    <div class="sys">${Object.keys(SYSTEMS).map(k => { const off = k === 'melee' && hasTeams; return `<label class="${T.system === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="Nicht wählbar, solange 2er- oder 3er-Teams gemeldet sind"' : ''}><input type="radio" name="sys" data-sys="${k}" ${T.system === k ? 'checked' : ''} ${dis || (off ? 'disabled' : '')}>${k === 'maas' ? 'Maastr.-System ≤ 64 Teams' : k === 'ko' ? 'ACBD-K.O. ≥ 64 Teams' : SYSTEMS[k].name}</label>`; }).join('')}</div>
     ${hasTeams && !T.started && !isMelee(T) ? '<p class="note">Supermêlée ist nicht wählbar, solange 2er- oder 3er-Teams in der Meldeliste stehen. Dafür bitte zuerst die Meldeliste leeren.</p>' : ''}
     <div class="note">${esc(S.desc)}</div>${hint ? `<div class="note calc">${esc(hint.trim())}</div>` : ''}
     <div class="grid" style="margin-top:14px">${S.opts.filter(k => optHtml[k]).map(k => optHtml[k]()).join('')}</div>
