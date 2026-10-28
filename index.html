@@ -1049,7 +1049,7 @@ function vTeilnehmer(T) {
     <td class="n"><span class="row" style="justify-content:flex-end;flex-wrap:nowrap">${ql && !T.started ? `<button class="btn sm" data-act="entry-up" data-id="${x.id}" title="Setzplatz nach oben" aria-label="Setzplatz nach oben">▲</button><button class="btn sm" data-act="entry-down" data-id="${x.id}" title="Setzplatz nach unten" aria-label="Setzplatz nach unten">▼</button>` : ''}<button class="btn sm" data-act="entry-edit" data-id="${x.id}">Bearbeiten</button>${canToggle ? `<button class="btn sm" data-act="entry-toggle" data-id="${x.id}">${x.active === false ? 'Wieder anmelden' : 'Abmelden'}</button>` : ''}${!T.started ? `<button class="btn sm danger" data-act="entry-del" data-id="${x.id}">Löschen</button>` : ''}</span></td></tr>`).join('');
   const one = k === 1, imp = importHead(T).join(' | ');
   return `${form}
-  <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${T.entries.length ? '<button class="btn sm" data-act="print" data-doc="meldeliste" title="Meldeliste drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="meldeliste" title="Meldeliste als Bilddatei herunterladen">Als Bild (JPEG)</button>' : ''}${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
+  <section class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Meldeliste – ${T.entries.length} ${who(T, true)}</h2><span class="row">${T.entries.length ? '<button class="btn sm" data-act="print" data-doc="meldeliste" title="Meldeliste drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="meldeliste" title="Meldeliste als Bilddatei herunterladen">Als Bild (JPEG)</button><button class="btn sm" data-act="pdf" data-doc="meldeliste" title="Meldeliste als PDF-Datei (A4 quer) herunterladen">Als PDF</button>' : ''}${!T.started && T.entries.length ? `<button class="btn sm danger" data-act="entry-clear">Alle ${who(T, true)} löschen</button>` : ''}</span></div>
     ${T.entries.length ? `<div class="tblwrap"><table><thead><tr><th class="n">${ql ? 'Setzpl.' : 'Nr.'}</th><th>${one ? 'Name' : 'Team'}</th><th>Verein</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Noch keine ${who(T, true)} gemeldet.</div>`}
     ${mel && activeIds(T).length >= 4 ? `<p class="note calc">${meleeHint(activeIds(T).length)}</p>` : ''}
     ${canToggle ? `<p class="note">${ql ? 'Ein abgemeldetes Team verliert sein offenes Spiel und alle weiteren Spiele kampflos 13:0. Der Gegner kommt weiter.' : 'Abgemeldete werden ab der nächsten Auslosung nicht mehr eingeteilt.'}</p>` : ''}${ql && !T.started && T.entries.length ? `<p class="note">Setzplatz = Reihenfolge der Meldeliste. Bitte die Setzliste des Verbands 1:1 in dieser Reihenfolge eintragen oder importieren, mit ▲ ▼ lässt sich ein Team verschieben. Die ersten ${qPlan(activeIds(T).length, T.opts.places).F} werden als Pouleköpfe gesetzt, der Rest wird zugelost.</p>` : ''}${!ql && !mel && !T.started && T.entries.length ? '<p class="note">Die Startnummer entspricht der Reihenfolge der Einschreibung und wird nicht ausgelost. Im Schweizer System entscheidet sie nur bei völligem Gleichstand in der Rangfolge.</p>' : ''}
@@ -1098,8 +1098,9 @@ function vSpiele(T) {
     ${st.state === 'done' && st.extra ? '<button class="btn" data-act="next">Zusatzrunde auslosen</button>' : ''}
     ${st.state === 'done' ? '<button class="btn primary" data-act="tab" data-tab="tabelle">Endstand ansehen</button>' : ''}
     ${UI.undo.length ? '<button class="btn" data-act="undo">Letzte Auslosung zurücknehmen</button>' : ''}
-    <button class="btn" data-act="print" data-doc="paarungen" title="Paarungen der gewählten Auswahl mit Bahnen drucken">Paarungen drucken</button><button class="btn" data-act="jpg" data-doc="paarungen" title="Paarungen der gewählten Auswahl als Bilddatei herunterladen">Paarungen als Bild</button>
-    ${st.state === 'play' ? '<button class="btn test" data-act="rnd" title="Trägt in alle offenen Spiele mit feststehenden Gegnern ein Zufallsergebnis ein">Test: alle Ergebnisse eintragen</button>' : ''}</div></div>`;
+    </div></div>`;
+  // Druck und Bild der Paarungen klein über den Spielen, wie auf der Seite „Tabelle“
+  const pbtn = '<div class="row" style="justify-content:flex-end;margin:0 0 10px"><button class="btn sm" data-act="print" data-doc="paarungen" title="Paarungen der gewählten Auswahl mit Bahnen drucken">Paarungen drucken</button><button class="btn sm" data-act="jpg" data-doc="paarungen" title="Paarungen der gewählten Auswahl als Bilddatei herunterladen">Paarungen als Bild</button></div>';
   const pp = T.phases.length > 1 ? `<div class="pills"><button class="pill ${all ? 'on' : ''}" data-act="phase" data-id="all">Alle</button>${T.phases.map(p => `<button class="pill ${!all && p.id === ph.id ? 'on' : ''}" data-act="phase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}</div>` : '';
   const rp = keys.length > 1 ? `<div class="pills"><button class="pill ${UI.round === 'all' ? 'on' : ''}" data-act="round" data-r="all">Alle</button>${keys.map(k => `<button class="pill ${UI.round === k.key ? 'on' : ''}" data-act="round" data-r="${k.key}">${esc(k.label)}</button>`).join('')}</div>` : '';
   const sel = UI.round === 'all' || !keys.some(k => k.key === UI.round) ? groups : groups.filter(g => g.key === UI.round);
@@ -1110,7 +1111,7 @@ function vSpiele(T) {
   const rpt = !all && ph.type === 'swiss' && ph.repeat && (UI.round === ph.repeat) ? '<p class="note">In dieser Runde ließ sich eine Wiederholung nicht vermeiden: Ein Topf ließ sich nicht ohne bereits gespielte Begegnung paaren.</p>' : '';
   const lockNote = !all && ph.stage < maxStage(T) ? '<p class="note">Diese Phase ist abgeschlossen. Ergebnisse lassen sich nur ändern, wenn die letzte Auslosung zurückgenommen wird.</p>' : '';
   const q22 = phs.some(p => p.type === 'poule' || p.type === 'qcad') && !lockNote ? '<p class="note">Poule und Cadrage beginnen mit dem Punktestand 2:2. Eingetragen wird das Endergebnis.</p>' : '';
-  return bar + pp + rp + rpt + lockNote + q22 + body;
+  return bar + pp + rp + rpt + lockNote + q22 + pbtn + body;
 }
 
 function stTable(T, ph, only) {
@@ -1185,7 +1186,7 @@ function vTabelle(T) {
   ensureSel(T);
   if (UI.tphase !== 'final' && !T.phases.some(p => p.id === UI.tphase)) UI.tphase = T.phases[0].id;
   const done = status(T).state === 'done';
-  const pills = `<div class="pills">${T.phases.map(p => `<button class="pill ${p.id === UI.tphase ? 'on' : ''}" data-act="tphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}<button class="pill ${UI.tphase === 'final' ? 'on' : ''}" data-act="tphase" data-id="final">Endstand${done ? '' : ' (vorläufig)'}</button><button class="btn sm" data-act="print" data-doc="tabelle" style="margin-left:auto" title="Die gewählte Tabelle drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="tabelle" title="Die gewählte Tabelle als Bilddatei herunterladen">Als Bild (JPEG)</button></div>`;
+  const pills = `<div class="pills">${T.phases.map(p => `<button class="pill ${p.id === UI.tphase ? 'on' : ''}" data-act="tphase" data-id="${p.id}">${esc(p.title)}</button>`).join('')}<button class="pill ${UI.tphase === 'final' ? 'on' : ''}" data-act="tphase" data-id="final">Endstand${done ? '' : ' (vorläufig)'}</button><button class="btn sm" data-act="print" data-doc="tabelle" style="margin-left:auto" title="Die gewählte Tabelle drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="tabelle" title="Die gewählte Tabelle als Bilddatei herunterladen">Als Bild (JPEG)</button>${UI.tphase === 'final' ? '<button class="btn sm" data-act="exp-pdf-end" title="Endstand als PDF-Datei (A4 quer) herunterladen">Als PDF</button><button class="btn sm" data-act="exp-xlsx-end" title="Endstand als Excel-Datei herunterladen">Als Excel</button>' : ''}</div>`;
   if (UI.tphase === 'final') return pills + finalSections(T).map(s => `<section class="card"><h2>${esc(s.title)}</h2>${rankList(T, s.rows)}</section>`).join('');
   return pills + phaseTable(T, T.phases.find(p => p.id === UI.tphase));
 }
@@ -1215,7 +1216,7 @@ function baumSource(T, ph) {
   const pre = T.system === 'maas' && T.phases.find(p => p.stage === 1 && p.type === 'swiss');
   if (!pre || !ph.ids || !ph.ids.length) return '';
   const only = new Set(ph.ids), pl = standings(T, pre).filter(r => only.has(r.id)).map(r => r.place);
-  return `<section class="card"><h2>Vorrunden-Tabelle${pl.length ? ` – Plätze ${Math.min(...pl)} bis ${Math.max(...pl)}` : ''}</h2><p class="muted" style="margin-top:0">Aus diesen Teams wurde das ${esc(ph.title)} gebildet. Gesetzt wird nach dieser Reihenfolge, Freilose bekommen die Bestplatzierten.</p>${stTable(T, pre, only)}</section>`;
+  return `<section class="card"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Vorrunden-Tabelle${pl.length ? ` – Plätze ${Math.min(...pl)} bis ${Math.max(...pl)}` : ''}</h2><span class="row"><button class="btn sm" data-act="print" data-doc="vorrunde" title="Diesen Ausschnitt der Vorrunden-Tabelle drucken">Drucken</button><button class="btn sm" data-act="jpg" data-doc="vorrunde" title="Diesen Ausschnitt als Bilddatei herunterladen">Als Bild (JPEG)</button><button class="btn sm" data-act="pdf" data-doc="vorrunde" title="Diesen Ausschnitt als PDF-Datei (A4 quer) herunterladen">Als PDF</button></span></div><p class="muted" style="margin-top:0">Aus diesen Teams wurde das ${esc(ph.title)} gebildet. Gesetzt wird nach dieser Reihenfolge, Freilose bekommen die Bestplatzierten.</p>${stTable(T, pre, only)}</section>`;
 }
 
 function pdbRows(q) {
@@ -1238,10 +1239,10 @@ function vDaten(T) {
     <div class="row" style="margin-bottom:12px"><input class="inp" id="pdb-q" type="search" placeholder="Suchen …" value="${esc(UI.pdbq || '')}" style="max-width:280px"><label class="btn">Aus Datei laden<input type="file" id="pdb-file" accept=".json" hidden></label><button class="btn" data-act="pdb-exp">Als Datei sichern</button><button class="btn" data-act="pdb-xlsx">Als Excel-Datei</button>${pdb().length ? '<button class="btn danger" data-act="pdb-clear">Datenbank leeren</button>' : ''}</div>
     ${pdb().length ? `<div class="tblwrap" style="max-height:420px;overflow:auto"><table><thead><tr><th>Vorname</th><th>Name</th><th>Verein</th><th></th></tr></thead><tbody id="pdb-list">${pdbRows(UI.pdbq || '')}</tbody></table></div>` : '<div class="empty">Noch keine Spieler gespeichert. Die Datenbank füllt sich mit jeder Meldung.</div>'}
   </section>
-  <section class="card"><h2>Endstand exportieren</h2><p class="muted">Druckt den ${T.system === 'quali' ? 'Endstand (Ergebnisliste)' : 'Endstand'} oder speichert ihn als Bild, als PDF-Datei oder als Excel-Datei.</p>
-    <div class="row"><button class="btn" data-act="print" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand drucken</button><button class="btn" data-act="jpg" data-doc="endstand" ${T.started ? '' : 'disabled'}>Endstand als Bild (JPEG)</button><button class="btn" data-act="exp-pdf-end" ${T.started ? '' : 'disabled'}>Endstand als PDF</button><button class="btn" data-act="exp-xlsx-end" ${T.started ? '' : 'disabled'}>Endstand als Excel</button></div></section>
   ${T.system === 'quali' ? `<section class="card"><h2>Quali-Unterlagen</h2><p class="muted">Turnierplan mit allen Poules und ein Laufzettel je Poule (wird dem Team aus Reihe 1 ausgehändigt).</p>
     <div class="row"><button class="btn" data-act="print" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan drucken</button><button class="btn" data-act="jpg" data-doc="turnierplan" ${T.started ? '' : 'disabled'}>Turnierplan als Bild (JPEG)</button><button class="btn" data-act="print" data-doc="laufzettel" ${T.started ? '' : 'disabled'}>Poule-Laufzettel drucken</button></div></section>` : ''}
+  <section class="card"><h2>Testlauf</h2><p class="muted">Nur zum Ausprobieren: Trägt in alle offenen Spiele des geöffneten Turniers, deren Gegner feststehen, ein Zufallsergebnis ein. Die nächste Runde wird danach wie gewohnt unter „Spiele“ ausgelost.</p>
+    <div class="row"><button class="btn test" data-act="rnd" ${T.started && status(T).state === 'play' ? '' : 'disabled'} title="Trägt in alle offenen Spiele mit feststehenden Gegnern ein Zufallsergebnis ein">Test: alle Ergebnisse eintragen</button></div></section>
   <section class="card"><h2>Turniere auf diesem Gerät</h2>
     <div class="tblwrap"><table><tbody>${DB.tournaments.map(t => `<tr><td><strong>${esc(t.name)}</strong> <small>${esc(t.date)} · ${esc(SYSTEMS[t.system].name)} · ${t.entries.length} Meldungen</small></td><td class="n"><span class="row" style="justify-content:flex-end">${t.id === T.id ? '<span class="tag">geöffnet</span>' : `<button class="btn sm" data-act="t-open" data-id="${t.id}">Öffnen</button>`}<button class="btn sm" data-act="t-copy" data-id="${t.id}">Meldeliste kopieren</button><button class="btn sm danger" data-act="t-del" data-id="${t.id}">Löschen</button></span></td></tr>`).join('')}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="t-new">Neues Turnier</button></div></section>`;
@@ -1285,6 +1286,10 @@ function docHtml(T, doc) {
     h = printHead(T, 'Turnierplan') + qPlanTable(T, qPhase(T));
   } else if (doc === 'laufzettel') {
     h = qPoule(T);
+  } else if (doc === 'vorrunde') {
+    const ph = bracketPhase(T), pre = ph && T.phases.find(p => p.stage === 1 && p.type === 'swiss');
+    if (pre && ph.ids && ph.ids.length) { const only = new Set(ph.ids), pl = standings(T, pre).filter(r => only.has(r.id)).map(r => r.place);
+      h = printHead(T, `Vorrunden-Tabelle ${ph.title} – Plätze ${Math.min(...pl)} bis ${Math.max(...pl)}`) + stTable(T, pre, only); }
   } else if (doc === 'endstand') {
     h = printHead(T, T.system === 'quali' ? 'Ergebnisliste' : 'Endstand') + finalSections(T).map(s => `<h2>${esc(s.title)}</h2>${rankList(T, s.rows)}`).join('');
   }
@@ -1387,7 +1392,7 @@ function pdfFromCanvas(cv, breaks, name) {
 function savePdf(T, doc) {
   const html = docHtml(T, doc);
   if (!htmlBlocks(html).some(b => b.kind === 'table' && b.rows.length > 1)) return toast('Für diese Auswahl gibt es noch nichts anzuzeigen.');
-  const { cv, breaks } = canvasFromHtml(html); pdfFromCanvas(cv, breaks, fname(T, (JPG_NAME[doc] || '_' + doc) + '.pdf'));
+  const { cv, breaks } = canvasFromHtml(html); pdfFromCanvas(cv, breaks, fname(T, docName(T, doc) + '.pdf'));
 }
 // Turnierbaum als Bild: eine Spalte je Runde, jedes Spiel als Kasten, Linien zum Folgespiel
 function bracketCanvas(T, ph) {
@@ -1437,7 +1442,8 @@ function bracketCanvas(T, ph) {
 }
 const bracketPhases = T => (T.system === 'quali' ? [] : T.phases.filter(p => p.type === 'ko'));
 const bracketPhase = T => { const br = bracketPhases(T); return br.find(p => p.id === UI.bphase) || br[0] || null; };
-const JPG_NAME = { meldeliste: '_Meldeliste', paarungen: '_Paarungen', tabelle: '_Tabelle', endstand: '_Endstand', turnierplan: '_Turnierplan' };
+const docName = (T, d) => (d === 'vorrunde' && bracketPhase(T) ? '_Vorrunden-Tabelle_' + bracketPhase(T).title.replace(/[^\wäöüÄÖÜß-]+/g, '_') : JPG_NAME[d] || '_' + d);
+const JPG_NAME = { meldeliste: '_Meldeliste', paarungen: '_Paarungen', tabelle: '_Tabelle', endstand: '_Endstand', turnierplan: '_Turnierplan', vorrunde: '_Vorrunden-Tabelle' };
 function saveJpeg(T, doc) {
   if (doc === 'baum') {
     const ph = bracketPhase(T);
@@ -1445,7 +1451,7 @@ function saveJpeg(T, doc) {
   }
   const d = doc === 'tabelle' && UI.tphase === 'final' ? 'endstand' : doc, html = docHtml(T, d);
   if (!htmlBlocks(html).some(b => b.kind === 'table' && b.rows.length > 1)) return toast('Für diese Auswahl gibt es noch nichts anzuzeigen.');
-  jpegFromHtml(html, fname(T, (JPG_NAME[d] || '_' + d) + '.jpg'));
+  jpegFromHtml(html, fname(T, docName(T, d) + '.jpg'));
 }
 
 // Poule-Laufzettel: einer je Poule, wird dem Team aus Reihe 1 ausgehändigt
@@ -1723,6 +1729,7 @@ const ACT = {
   print: el => printDoc(cur(), el.dataset.doc),
   jpg: el => saveJpeg(cur(), el.dataset.doc),
   'exp-pdf-end': () => savePdf(cur(), 'endstand'),
+  pdf: el => savePdf(cur(), el.dataset.doc),
   'exp-xlsx-end': () => { const T = cur(); download(fname(T, '_Endstand.xlsx'), xlsxFile(endRows(T), T.system === 'quali' ? 'Ergebnisliste' : 'Endstand'), XLSX); },
   't-new': () => { const t = newTournament(); DB.tournaments.push(t); DB.current = t.id; UI.undo = []; UI.tab = 'turnier'; selDefault(t); save(); render(); },
   't-open': el => { DB.current = el.dataset.id; UI.undo = []; selDefault(cur()); save(); render(); },
