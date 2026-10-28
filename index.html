@@ -81,6 +81,7 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .sys label.off{opacity:.5;cursor:not-allowed}
 .sys input{accent-color:var(--accent)}
 .note{background:var(--sunk);border-radius:14px;padding:12px 14px;color:var(--muted);font-size:.9rem;margin-top:12px}
+.note.calc{background:var(--notice-bg);border:1px solid var(--notice-border);color:var(--notice-text);font-weight:600}
 .statusbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-radius:var(--r);padding:14px 18px;margin-bottom:16px;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--rust);box-shadow:var(--panel-shadow)}
 .statusbar.next{border-color:var(--notice-border);border-left-color:var(--notice-border);background:var(--notice-bg);color:var(--notice-text)}
 .statusbar.done{border-left-color:var(--green-accent);background:var(--green-soft)}
@@ -997,7 +998,7 @@ function vTurnier(T) {
   <section class="card"><h2>Turniersystem</h2>
     <div class="sys">${Object.keys(SYSTEMS).map(k => { const off = k === 'melee' && hasTeams; return `<label class="${T.system === k ? 'on' : ''} ${off ? 'off' : ''}" ${off ? 'title="Nicht wählbar, solange 2er- oder 3er-Teams gemeldet sind"' : ''}><input type="radio" name="sys" data-sys="${k}" ${T.system === k ? 'checked' : ''} ${dis || (off ? 'disabled' : '')}>${SYSTEMS[k].name}</label>`; }).join('')}</div>
     ${hasTeams && !T.started && !isMelee(T) ? '<p class="note">Supermêlée ist nicht wählbar, solange 2er- oder 3er-Teams in der Meldeliste stehen. Dafür bitte zuerst die Meldeliste leeren.</p>' : ''}
-    <div class="note">${esc(S.desc)}${esc(hint)}</div>
+    <div class="note">${esc(S.desc)}</div>${hint ? `<div class="note calc">${esc(hint.trim())}</div>` : ''}
     <div class="grid" style="margin-top:14px">${S.opts.filter(k => optHtml[k]).map(k => optHtml[k]()).join('')}</div>
     <div style="margin-top:8px">${S.opts.filter(k => chkHtml[k]).map(k => chkHtml[k]()).join('')}</div>
   </section>
