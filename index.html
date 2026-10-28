@@ -199,7 +199,7 @@ const SYSTEMS = {
   swiss: { name: 'Schweizer System', min: 4, opts: ['rounds'],
     desc: 'Feste Rundenzahl, niemand scheidet aus. Runde 1 wird frei gelost. Danach Paarung nach Töpfen gleicher Siegzahl: Innerhalb des Topfes wird nach der Rangfolge sortiert (Buchholz, Feinbuchholz, Punktedifferenz, erzielte Punkte), dann spielt der 1. gegen den 2., der 3. gegen den 4. usw. Bei ungeradem Topf wird der Bestplatzierte des nächsten Topfes hochgespielt. Das Freilos (13:7) erhält der Letzte des untersten Topfes, kein Team zweimal. Keine Begegnung doppelt. Wertung: Siege, Buchholz, Feinbuchholz, Punktedifferenz, erzielte Punkte, bei völligem Gleichstand der direkte Vergleich.' },
   maas:  { name: 'Maastrichter System', min: 4, opts: ['rounds', 'field'],
-    desc: 'Vorrunden im Schweizer System (üblich: 3 Runden), danach K.O. in A/B, A/B/C oder A/B/C/D nach der Rangliste der Vorrunde – wie viele Turniere es gibt, ergibt sich aus der Teilnehmerzahl. Die Felder werden von oben voll besetzt (üblich: 16 Teams). Ein Rest von 1 bis 5 Teams spielt im letzten Turnier mit, ab 6 Teams bildet er ein eigenes Turnier. Fehlen einem Turnier bis zur nächsten Baumgröße (4, 8, 16 …) höchstens 2 Teams, wird mit Freilosen aufgefüllt (z. B. 6 oder 7 Teams: Viertelfinale, 14 oder 15 Teams: Achtelfinale), sonst wird eine Cadrage auf die kleinere Baumgröße gespielt (z. B. 9 bis 13 Teams auf 8).' },
+    desc: 'Vorrunden im Schweizer System (üblich: 3 Runden), danach K.O. in A/B, A/B/C oder A/B/C/D nach der Rangliste der Vorrunde – wie viele Turniere es gibt, ergibt sich aus der Teilnehmerzahl. Die Felder werden von oben voll besetzt (üblich: 16 Teams). Ein Rest von 1 bis 6 Teams spielt im letzten Turnier mit, ab 7 Teams bildet er ein eigenes Turnier. Fehlen einem Turnier bis zur nächsten Baumgröße (4, 8, 16 …) höchstens 2 Teams, wird mit Freilosen aufgefüllt (z. B. 7 Teams: Viertelfinale, 14 oder 15 Teams: Achtelfinale), sonst wird eine Cadrage auf die kleinere Baumgröße gespielt (z. B. 9 bis 13 Teams auf 8).' },
   ko:    { name: 'ACBD-K.O.', min: 64, opts: [],
     desc: 'Runde 1 wird frei gelost: Die Sieger bilden die Gruppe A, die Verlierer die Gruppe C. Erst danach wird Runde 2 gelost – getrennt innerhalb von A und innerhalb von C. Wer in A verliert, spielt im B-Turnier weiter, wer in C verliert, im D-Turnier. Nach diesen zwei Runden werden die vier Turniere ausgelost und im K.O. zu Ende gespielt. Passt ein Feld nicht auf 16 oder 32 Teams, beginnt es mit einer Cadrage; wer sie verliert, scheidet aus. Dieses System wird erst ab 64 Teams gespielt.' },
   melee: { name: 'Supermêlée', min: 4, opts: ['rounds'],
@@ -690,9 +690,9 @@ function start(T) {
   propagate(T); assignCourts(T);
 }
 // Einteilung der K.O.-Felder nach der Vorrunde (P = Feldgröße, üblich 16): Die Felder werden von oben
-// voll besetzt. Ein Rest von 1 bis 5 Teams spielt im letzten Turnier mit, ab 6 Teams bildet er ein eigenes Turnier.
+// voll besetzt. Ein Rest von 1 bis 6 Teams spielt im letzten Turnier mit, ab 7 Teams bildet er ein eigenes Turnier.
 // Höchstens vier Turniere (A-D); was darüber hinausgeht, spielt im D-Turnier.
-// Beispiele P=16: 64 -> 16/16/16/16, 60 -> 16/16/16/12, 54 -> 16/16/16/6, 53 -> 16/16/21, 38 -> 16/16/6
+// Beispiele P=16: 64 -> 16/16/16/16, 60 -> 16/16/16/12, 55 -> 16/16/16/7, 54 -> 16/16/22, 38 -> 16/22
 // Fehlen bis zur nächsten Baumgröße höchstens 2 Teams, wird mit Freilosen aufgefüllt (6/7 -> Viertelfinale,
 // 14/15 -> Achtelfinale), sonst Cadrage auf die kleinere Baumgröße (9-13 -> 8)
 const finalsByes = x => { let N = 1; while (N < x) N *= 2; return N > x && N - x <= 2; };
@@ -701,7 +701,7 @@ function finalsPlan(n, P) {
   const f = Math.floor(n / P), r = n % P;
   if (f === 0) return [n];
   let s = Array(f).fill(P);
-  if (r >= 6) s.push(r); else s[s.length - 1] += r;
+  if (r >= 7) s.push(r); else s[s.length - 1] += r;
   if (s.length > 4) s = s.slice(0, 3).concat([s.slice(3).reduce((a, b) => a + b, 0)]);
   return s;
 }
