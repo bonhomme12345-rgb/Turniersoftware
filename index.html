@@ -160,12 +160,14 @@ tr.off td{opacity:.5;text-decoration:line-through}
   #print h1,#print h2{font-family:var(--display)}
   #print{display:block}
   #print img.baum{display:block;max-width:100%;margin:0 auto;object-fit:contain}
-  #print h1{font-size:16pt;margin-bottom:2mm}
-  #print .sub{color:#444;margin-bottom:5mm}
-  #print h2{font-size:12pt;margin:5mm 0 2mm}
-  #print table{font-size:10pt}
-  #print th,#print td{border-bottom:.3pt solid #999;padding:1.4mm 2mm;color:#000}
-  #print th{color:#333}
+  #print h1{font-size:18pt;margin-bottom:2mm}
+  #print .sub{color:#333;margin-bottom:5mm;padding-bottom:2.5mm;border-bottom:.8mm solid #7a3b1e}
+  #print h2{font-size:13pt;margin:5mm 0 2mm;color:#7a3b1e}
+  #print table{font-size:11pt;width:100%}
+  #print th,#print td{border-bottom:.3pt solid #bbb;padding:1.6mm 2.2mm;color:#000}
+  #print th{color:#fff;background:#7a3b1e;font-size:9.5pt;text-transform:uppercase;letter-spacing:.03em}
+  #print tbody tr:nth-child(odd) td{background:#f6f1ea}
+  #print,#print *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   tr{break-inside:avoid}
   #print .lz{break-inside:avoid;page-break-inside:avoid;margin-bottom:8mm}
   #print .lz+.lz{break-before:page;page-break-before:always}
@@ -1323,59 +1325,87 @@ function htmlBlocks(html) {
   } };
   walk(root); return out;
 }
+// Listen als Bild/PDF: Text wird nie abgeschnitten, zu lange Zellen werden umbrochen (die Zeile wird höher)
 function canvasFromHtml(html) {
-  const F = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', PAD = 32, CP = 10, MAXC = 380;
+  const F = '"Segoe UI", Roboto, Helvetica, Arial, sans-serif', PAD = 40, CP = 12, MAXW = 1100, LH = 21, ACC = '#7a3b1e', INK = '#111111';
   const cv = document.createElement('canvas'); let cx = cv.getContext('2d');
   const font = (sz, w) => `${w || 400} ${sz}px ${F}`, mw = (t, f) => { cx.font = f; return cx.measureText(t).width; };
   const fit = (t, f, max) => { if (mw(t, f) <= max) return t; while (t.length > 1 && mw(t + '…', f) > max) t = t.slice(0, -1); return t + '…'; };
-  const wrap = (t, f, max) => { const out = []; let line = ''; t.split(' ').forEach(w => { const x = line ? line + ' ' + w : w; if (line && mw(x, f) > max) { out.push(line); line = w; } else line = x; }); if (line) out.push(line); return out; };
-  const blocks = htmlBlocks(html), cf = c => (c.head ? font(12, 700) : font(15, c.bold ? 700 : 400)), sf = font(12);
-  blocks.filter(b => b.kind === 'table').forEach(b => {
-    const n = Math.max(...b.rows.map(r => r.length)); b.w = Array(n).fill(0);
-    b.rows.forEach(r => r.forEach((c, i) => { const x = mw(c.head ? c.main.toUpperCase() : c.main, cf(c)) + (c.sub ? 8 + mw(c.sub, sf) : 0); b.w[i] = Math.max(b.w[i], Math.min(MAXC, x) + 2 * CP); }));
+  const words = (t, f, max) => { const out = []; let line = ''; String(t).split(' ').forEach(w => { const x = line ? line + ' ' + w : w; if (line && mw(x, f) > max) { out.push(line); line = w; } else line = x; }); if (line || !out.length) out.push(line); return out.map(l => fit(l, f, max)); };
+  const wrap = (t, f, max) => { // mehrere Vereine/Spieler („A / B“) möglichst am Schrägstrich umbrechen
+    t = String(t); if (mw(t, f) <= max || !t.includes(' / ')) return words(t, f, max);
+    const out = []; let line = ''; t.split(' / ').forEach(seg => { const x = line ? line + ' / ' + seg : seg; if (line && mw(x, f) > max) { out.push(line + '\u00a0/'); line = seg; } else line = x; }); // Schrägstrich bleibt am Wort davor
+    out.push(line); return out.flatMap(l => words(l, f, max));
+  };
+  const blocks = htmlBlocks(html), cf = c => (c.head ? font(13, 700) : font(16, c.bold ? 700 : 400)), sf = font(13), label = c => (c.head ? c.main.toUpperCase() : c.main);
+  const natural = c => mw(label(c), cf(c)) + (c.sub ? 8 + mw(c.sub, sf) : 0);
+  const tables = blocks.filter(b => b.kind === 'table');
+  tables.forEach(b => {
+    const n = Math.max(...b.rows.map(r => r.length)); b.w = Array(n).fill(2 * CP + 16);
+    b.rows.forEach(r => r.forEach((c, i) => { b.w[i] = Math.max(b.w[i], Math.ceil(natural(c)) + 2 * CP); }));
+    const sum = w => w.reduce((a, x) => a + x, 0);
+    const maxw = Math.max(MAXW, 170 * n); // viele Spalten (z. B. Turnierplan) dürfen breiter werden
+    if (sum(b.w) > maxw) { // breiteste Spalten so weit schmaler machen, bis die Tabelle passt; ihr Text wird umbrochen
+      let lo = 160, hi = Math.max(...b.w); while (hi - lo > 1) { const m = (lo + hi) / 2; if (sum(b.w.map(x => Math.min(x, m))) > maxw) hi = m; else lo = m; }
+      b.w = b.w.map(x => Math.floor(Math.min(x, lo)));
+    }
   });
-  const W = Math.max(720, ...blocks.filter(b => b.w).map(b => b.w.reduce((a, x) => a + x, 0))) + 2 * PAD, inner = W - 2 * PAD;
+  const W = Math.max(760, ...tables.map(b => b.w.reduce((a, x) => a + x, 0))) + 2 * PAD, inner = W - 2 * PAD;
+  tables.forEach(b => { const tw = b.w.reduce((a, x) => a + x, 0); if (tw < inner) b.w[b.w.length - 1] += inner - tw; }); // jede Tabelle über die volle Breite
+  // Zellen vorbereiten: Zeilen des Haupttexts und der Zusatz (klein, dahinter oder in eigener Zeile)
+  tables.forEach(b => b.rows.forEach(r => {
+    r.forEach((c, i) => {
+      const avail = (b.w[i] || 0) - 2 * CP, f = cf(c);
+      c.lines = wrap(label(c), f, avail);
+      if (c.sub) { const last = mw(c.lines[c.lines.length - 1], f); if (last + 8 + mw(c.sub, sf) <= avail) c.subAfter = true; else { c.subAfter = false; c.subLines = wrap(c.sub, sf, avail); } }
+    });
+    r.h = Math.max(r.every(c => c.head) ? 34 : 38, ...r.map(c => (c.lines.length + (c.sub && !c.subAfter ? c.subLines.length * 0.85 : 0)) * LH + 16));
+  }));
   const stamp = 'Pétanque-Turnierleitung · Stand ' + new Date().toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
   const breaks = []; // mögliche Seitenumbrüche (nach jeder Zeile) für die PDF-Datei
   const pass = draw => {
     let y = PAD;
     const text = (t, f, col, x, yy, align) => { if (!draw) return; cx.font = f; cx.fillStyle = col; cx.textAlign = align || 'left'; cx.textBaseline = 'middle'; cx.fillText(t, x, yy); };
+    const rect = (x, yy, w, h, col) => { if (draw) { cx.fillStyle = col; cx.fillRect(x, yy, w, h); } };
     blocks.forEach(b => {
-      if (b.kind === 'h1') { text(b.text, font(26, 700), '#1d1b18', PAD, y + 16); y += 38; }
-      else if (b.kind === 'sub') { wrap(b.text, font(14), inner).forEach(l => { text(l, font(14), '#555', PAD, y + 10); y += 21; }); y += 8; }
-      else if (b.kind === 'h2' || b.kind === 'h3' || b.kind === 'h4') { const sz = b.kind === 'h2' ? 19 : 16; y += 12; text(b.text, font(sz, 700), '#7a3b1e', PAD, y + 13); y += sz + 14; }
-      else if (b.kind === 'p') { wrap(b.text, font(13), inner).forEach(l => { text(l, font(13), '#666', PAD, y + 9); y += 18; }); y += 6; }
+      if (b.kind === 'h1') { wrap(b.text, font(30, 700), inner).forEach(l => { text(l, font(30, 700), INK, PAD, y + 18); y += 40; }); }
+      else if (b.kind === 'sub') { wrap(b.text, font(15), inner).forEach(l => { text(l, font(15), '#333', PAD, y + 11); y += 22; }); y += 8; rect(PAD, y, inner, 3, ACC); y += 18; }
+      else if (b.kind === 'h2' || b.kind === 'h3' || b.kind === 'h4') { const sz = b.kind === 'h2' ? 21 : 18; y += 12; wrap(b.text, font(sz, 700), inner).forEach(l => { text(l, font(sz, 700), ACC, PAD, y + 13); y += sz + 8; }); y += 8; }
+      else if (b.kind === 'p') { wrap(b.text, font(14), inner).forEach(l => { text(l, font(14), '#444', PAD, y + 10); y += 20; }); y += 6; }
       else if (b.kind === 'table') {
+        const tw = b.w.reduce((a, x) => a + x, 0);
         b.rows.forEach((r, ri) => {
-          const head = r.every(c => c.head), h = head ? 30 : 32, tw = b.w.reduce((a, x) => a + x, 0);
-          if (draw) { cx.fillStyle = head ? '#ece6dc' : ri % 2 ? '#ffffff' : '#f7f4ef'; cx.fillRect(PAD, y, tw, h); cx.fillStyle = '#d9d2c6'; cx.fillRect(PAD, y + h - 1, tw, 1); }
+          const head = r.every(c => c.head), h = r.h;
+          rect(PAD, y, tw, h, head ? ACC : ri % 2 ? '#ffffff' : '#f6f1ea'); if (!head) rect(PAD, y + h - 1, tw, 1, '#ddd3c5');
           let x = PAD;
           r.forEach((c, i) => {
-            const w = b.w[i] || 0, avail = w - 2 * CP, f = cf(c), t0 = c.head ? c.main.toUpperCase() : c.main;
-            const main = fit(t0, f, avail), m = mw(main, f), rest = avail - m - 8, sub = c.sub && rest + 1 >= Math.min(mw(c.sub, sf), 24) ? fit(c.sub, sf, rest + 1) : '';
-            const total = m + (sub ? 8 + mw(sub, sf) : 0), x0 = c.n ? x + w - CP - total : x + CP;
-            text(main, f, c.head ? '#555' : c.qwin ? '#b4530a' : '#1d1b18', x0, y + h / 2);
-            if (sub) text(sub, sf, '#777', x0 + m + 8, y + h / 2 + 1);
+            const w = b.w[i] || 0, f = cf(c), col = head ? '#ffffff' : c.qwin ? '#b4530a' : INK;
+            const n = c.lines.length + (c.sub && !c.subAfter ? c.subLines.length * 0.85 : 0); let yy = y + (h - n * LH) / 2 + LH / 2;
+            c.lines.forEach((l, li) => {
+              const m = mw(l, f), extra = li === c.lines.length - 1 && c.sub && c.subAfter ? 8 + mw(c.sub, sf) : 0, x0 = c.n ? x + w - CP - m - extra : x + CP;
+              text(l, f, col, x0, yy); if (extra) text(c.sub, sf, head ? '#fff' : '#555', x0 + m + 8, yy + 1); yy += LH;
+            });
+            if (c.sub && !c.subAfter) c.subLines.forEach(l => { text(l, sf, '#555', c.n ? x + w - CP - mw(l, sf) : x + CP, yy - LH * 0.1); yy += LH * 0.85; });
             x += w;
           });
           y += h; if (draw) breaks.push(y);
         });
-        y += 10;
+        y += 14;
       }
     });
-    y += 10; text(stamp, font(12), '#888', PAD, y + 8); return y + 16 + PAD;
+    y += 6; rect(PAD, y, inner, 1, '#ddd3c5'); y += 10; text(stamp, font(13), '#666', PAD, y + 9); return y + 18 + PAD;
   };
   const H = pass(false), sc = Math.max(1, Math.min(2, Math.floor(30000 / H)));
   cv.width = W * sc; cv.height = H * sc; cx = cv.getContext('2d'); cx.scale(sc, sc);
   cx.fillStyle = '#fff'; cx.fillRect(0, 0, W, H); pass(true);
-  return { cv, breaks: breaks.map(y => y * sc) };
+  return { cv, breaks: breaks.map(y => y * sc), sc };
 }
 const saveCanvas = (cv, name) => cv.toBlob(b => { if (b) download(name, b, 'image/jpeg'); else toast('Das Bild konnte nicht erzeugt werden.'); }, 'image/jpeg', 0.92);
 const jpegFromHtml = (html, name) => saveCanvas(canvasFromHtml(html).cv, name);
 // PDF-Datei (A4 quer) aus dem Bild: lange Listen werden zwischen zwei Zeilen auf mehrere Seiten verteilt;
-// die Tabelle behält die Breite einer Hochformat-Seite und steht mittig, damit die Schrift nicht übergroß wird
-function pdfFromCanvas(cv, breaks, name) {
-  const PW = 841.89, PH = 595.28, M = 28, k = (595.28 - 2 * M) / cv.width, X = ((PW - cv.width * k) / 2).toFixed(2), maxH = Math.floor((PH - 2 * M) / k), cuts = [0];
+// die Liste nutzt die Seitenbreite, wird aber höchstens so groß, dass die Schrift etwa 12 pt hat (steht dann mittig)
+function pdfFromCanvas(cv, breaks, name, sc) {
+  const PW = 841.89, PH = 595.28, M = 28, k = Math.min((PW - 2 * M) / cv.width, 0.75 / (sc || 1)), X = ((PW - cv.width * k) / 2).toFixed(2), maxH = Math.floor((PH - 2 * M) / k), cuts = [0];
   while (cv.height - cuts[cuts.length - 1] > maxH) { const last = cuts[cuts.length - 1]; cuts.push(breaks.filter(b => b > last + maxH / 3 && b <= last + maxH).pop() || last + maxH); }
   cuts.push(cv.height);
   const parts = [], xref = []; let off = 0;
@@ -1401,7 +1431,7 @@ function pdfFromCanvas(cv, breaks, name) {
 function savePdf(T, doc) {
   const html = docHtml(T, doc);
   if (!htmlBlocks(html).some(b => b.kind === 'table' && b.rows.length > 1)) return toast('Für diese Auswahl gibt es noch nichts anzuzeigen.');
-  const { cv, breaks } = canvasFromHtml(html); pdfFromCanvas(cv, breaks, fname(T, docName(T, doc) + '.pdf'));
+  const { cv, breaks, sc } = canvasFromHtml(html); pdfFromCanvas(cv, breaks, fname(T, docName(T, doc) + '.pdf'), sc);
 }
 // Turnierbaum als Bild: eine Spalte je Runde, jedes Spiel als Kasten, Linien zum Folgespiel
 function bracketCanvas(T, ph) {
